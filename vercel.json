@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "echo \"API-only deploy (no frontend build)\"",
-  "installCommand": "echo \"No install step required\""
+  "buildCommand": "mkdir -p .vercel-static && printf 'SociClaw API is running\\n' > .vercel-static/index.html",
+  "installCommand": "echo \"No install step required\"",
+  "outputDirectory": ".vercel-static"
 }
