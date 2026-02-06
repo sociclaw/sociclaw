@@ -112,6 +112,7 @@ NOTION_DATABASE_ID=your_database_id
 To keep `OPENCLAW_PROVISION_SECRET` server-side, deploy a small proxy:
 
 - Source: `api/sociclaw/provision.js` (this repo, API project)
+- Vercel config: `vercel.json` (API-only deploy, no vite build)
 - API project env vars:
   - `OPENCLAW_PROVISION_SECRET` (required)
   - `SOCICLAW_INTERNAL_TOKEN` (optional; protects the endpoint)
