@@ -11,7 +11,8 @@ Expected gateway behavior:
 - Returns JSON (schema depends on upstream), typically including:
   api_key and/or wallet_address (top-level or nested under "data")
 
-See: website/api/sociclaw/provision.js
+Deploy this route in your backend (e.g. Vercel function):
+- /api/sociclaw/provision
 """
 
 from __future__ import annotations

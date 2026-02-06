@@ -12,7 +12,7 @@ sociclaw/                   # Python package (skill logic)
   templates/                # post/calendar templates
   fixtures/                 # sample data
   tests/                    # pytest
-website/                    # Landing page (Vite) + Vercel provisioning gateway
+src/lib/sociclaw/           # Optional TS helper SDK (topup client)
 SKILL.md                    # OpenClaw skill definition (English)
 SPEC.md                     # Technical notes
 ROADMAP.md                  # Future work (on-chain credits, etc.)
@@ -64,14 +64,6 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-## Quick Start (Website)
-
-```powershell
-cd D:\sociclaw\website
-npm install
-npm run dev
-```
-
 ## Environment Variables
 
 Create a `.env` at the repo root:
@@ -104,11 +96,11 @@ NOTION_DATABASE_ID=your_database_id
 # SociClaw Credits are off-chain; no on-chain config needed.
 ```
 
-## Provisioning Gateway (Vercel)
+## Provisioning Gateway (Vercel / your backend)
 
 To keep `OPENCLAW_PROVISION_SECRET` server-side, deploy a small proxy:
 
-- Source: `website/api/sociclaw/provision.js`
+- Source: in your private website/backend repo (`sociclaw/website`)
 - Vercel env vars:
   - `OPENCLAW_PROVISION_SECRET` (required)
   - `SOCICLAW_INTERNAL_TOKEN` (optional; protects the endpoint)
