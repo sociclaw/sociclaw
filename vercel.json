@@ -1,10 +1,5 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "echo \"API-only deploy (no frontend build)\"",
-  "installCommand": "echo \"No install step required\"",
-  "functions": {
-    "api/**/*.js": {
-      "runtime": "nodejs20.x"
-    }
-  }
+  "installCommand": "echo \"No install step required\""
 }
