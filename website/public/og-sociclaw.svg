@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
+  <defs>
+    <linearGradient id="mesh1" x1="120" y1="40" x2="520" y2="460" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6AD7FF" stop-opacity="0.26" />
+      <stop offset="0.55" stop-color="#CFE9FF" stop-opacity="0.16" />
+      <stop offset="1" stop-color="#3FF0B0" stop-opacity="0.12" />
+    </linearGradient>
+    <linearGradient id="mesh2" x1="700" y1="40" x2="1140" y2="560" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3FF0B0" stop-opacity="0.18" />
+      <stop offset="0.55" stop-color="#6AD7FF" stop-opacity="0.16" />
+      <stop offset="1" stop-color="#CFE9FF" stop-opacity="0.10" />
+    </linearGradient>
+    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#6AD7FF" />
+      <stop offset="0.52" stop-color="#CFE9FF" />
+      <stop offset="1" stop-color="#3FF0B0" />
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="22" stdDeviation="18" flood-color="#000000" flood-opacity="0.55" />
+    </filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="#060B16" />
+  <circle cx="250" cy="190" r="280" fill="url(#mesh1)" />
+  <circle cx="1010" cy="230" r="320" fill="url(#mesh2)" />
+  <circle cx="760" cy="560" r="260" fill="rgba(207,233,255,0.08)" />
+
+  <g filter="url(#shadow)">
+    <rect x="72" y="84" width="1056" height="462" rx="34" fill="rgba(12,20,43,0.72)" stroke="rgba(255,255,255,0.14)" />
+  </g>
+
+  <g transform="translate(112 132)">
+    <rect x="0" y="0" width="74" height="74" rx="26" fill="url(#mark)" stroke="rgba(255,255,255,0.18)" />
+    <path
+      d="M12 44c11-2 18-9 26-22 2-3 7-3 9 0 3 6 7 11 15 16 2 1 2 4 0 5-13 8-26 11-44 7-4-1-7-4-6-6Z"
+      fill="rgba(6,11,22,0.62)"
+    />
+
+    <text x="94" y="34" font-size="54" font-weight="800" letter-spacing="-1.5" fill="#EAF3FF" font-family="serif">SociClaw</text>
+    <text x="94" y="68" font-size="22" font-weight="600" fill="rgba(234,243,255,0.78)" font-family="sans-serif">
+      Autonomous X posting agent - quarterly planning included.
+    </text>
+
+    <g transform="translate(0 128)">
+      <rect x="0" y="0" width="980" height="240" rx="28" fill="#0A1021" stroke="rgba(255,255,255,0.12)" />
+
+      <text x="24" y="46" font-size="18" font-family="monospace" fill="rgba(234,243,255,0.90)">$ /sociclaw plan Q1</text>
+      <text x="24" y="82" font-size="18" font-family="monospace" fill="rgba(234,243,255,0.90)">Research: last 30 days (X)</text>
+      <text x="24" y="118" font-size="18" font-family="monospace" fill="rgba(234,243,255,0.90)">Generating: 180 ideas (90 days x 2)</text>
+      <text x="24" y="166" font-size="18" font-family="monospace" fill="rgba(234,243,255,0.90)">OK Trello/Notion * Provider * Credits</text>
+
+      <rect x="24" y="192" width="520" height="30" rx="15" fill="rgba(106,215,255,0.18)" />
+      <text x="40" y="214" font-size="14" font-family="sans-serif" font-weight="700" fill="rgba(234,243,255,0.92)">
+        2 posts/day * peak time slots * balanced categories
+      </text>
+    </g>
+  </g>
+</svg>

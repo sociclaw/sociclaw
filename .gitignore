@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+*.env
+
+# IDE
+.vscode/
+.idea/
+.claude/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+nul
+
+# Local scratch
+.tmp/
+.pytest_cache/
+
+# Ralph (cloned repo, not scripts/ralph)
+/ralph/
+.ralph/
+*.log
+
+# Node (for smart contract)
+node_modules/
+
+# Smart contracts (roadmap only)
+/contracts/
+
+# Images generated
+*.png
+*.jpg
+*.jpeg
+!templates/*.png

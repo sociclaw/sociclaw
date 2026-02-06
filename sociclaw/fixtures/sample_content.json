@@ -1,0 +1,82 @@
+﻿[
+  {
+    "text": "Bitcoin analysis: Testing key support levels today. Stay nimble. #Crypto #Bitcoin #Markets",
+    "image_prompt": "Bitcoin, financial chart, modern, professional, crypto themed, data visualization, 1024x1024",
+    "hashtags": ["Crypto", "Bitcoin", "Markets"],
+    "category": "market_analysis",
+    "date": "2026-01-05",
+    "time": 13
+  },
+  {
+    "text": "How to understand gas fees: Start with network demand and block space. #Ethereum #Web3 #LearnCrypto",
+    "image_prompt": "gas fees, infographic style, modern, professional, crypto themed, clean layout, 1024x1024",
+    "hashtags": ["Ethereum", "Web3", "LearnCrypto"],
+    "category": "educational",
+    "date": "2026-01-05",
+    "time": 18
+  },
+  {
+    "text": "Breaking: Major exchange expands Base support. Adoption keeps climbing. #Base #CryptoNews #Web3",
+    "image_prompt": "breaking news, bold typography, modern, professional, crypto themed, 1024x1024",
+    "hashtags": ["Base", "CryptoNews", "Web3"],
+    "category": "news",
+    "date": "2026-01-06",
+    "time": 14
+  },
+  {
+    "text": "Pro tip: Use a hardware wallet for long-term holdings. Security first. #CryptoTips #Security #Web3",
+    "image_prompt": "hardware wallet, minimalist design, modern, professional, crypto themed, 1024x1024",
+    "hashtags": ["CryptoTips", "Security", "Web3"],
+    "category": "tips",
+    "date": "2026-01-06",
+    "time": 21
+  },
+  {
+    "text": "Unpopular opinion: UX will decide the next L2 winners. Change my mind. #Layer2 #Web3 #Opinion",
+    "image_prompt": "bold statement, modern, professional, crypto themed, striking visuals, 1024x1024",
+    "hashtags": ["Layer2", "Web3", "Opinion"],
+    "category": "opinion",
+    "date": "2026-01-07",
+    "time": 13
+  },
+  {
+    "text": "Thread: Understanding stablecoins\n\n1/ Why they matter\n2/ How they stay pegged\n3/ Risks to watch #DeFi #Thread",
+    "image_prompt": "stablecoins, thread visualization, numbered layout, modern, professional, 1024x1024",
+    "hashtags": ["DeFi", "Thread", "Web3"],
+    "category": "thread",
+    "date": "2026-01-08",
+    "time": 17
+  },
+  {
+    "text": "Me: I'll stop checking the charts\nAlso me: *refreshes for the 50th time* #CryptoMemes #HODL",
+    "image_prompt": "meme style, humorous, crypto themed, 1024x1024",
+    "hashtags": ["CryptoMemes", "HODL", "Crypto"],
+    "category": "meme",
+    "date": "2026-01-09",
+    "time": 22
+  },
+  {
+    "text": "Market insight: L2 volumes rising fast. Bullish for scalability. #Web3 #Markets #Layer2",
+    "image_prompt": "layer 2 volumes, data visualization, modern, professional, 1024x1024",
+    "hashtags": ["Web3", "Markets", "Layer2"],
+    "category": "market_analysis",
+    "date": "2026-01-10",
+    "time": 14
+  },
+  {
+    "text": "Crypto 101: Always verify contract addresses before interacting. #CryptoSafety #Web3 #DYOR",
+    "image_prompt": "contract address verification, infographic style, modern, professional, 1024x1024",
+    "hashtags": ["CryptoSafety", "Web3", "DYOR"],
+    "category": "educational",
+    "date": "2026-01-10",
+    "time": 18
+  },
+  {
+    "text": "Update: DeFi TVL rebounds this week. Momentum building. #DeFi #CryptoNews #TVL",
+    "image_prompt": "defi tvl, breaking news style, modern, professional, 1024x1024",
+    "hashtags": ["DeFi", "CryptoNews", "TVL"],
+    "category": "news",
+    "date": "2026-01-11",
+    "time": 21
+  }
+]

@@ -1,0 +1,149 @@
+{
+  "market_analysis": [
+    {
+      "category": "market_analysis",
+      "tone": "professional",
+      "structure": "{topic} analysis: {insight}. Key levels to watch. 📊",
+      "example": "Bitcoin analysis: Testing critical $40k support level. Key levels to watch. 📊",
+      "hashtags_pool": ["Crypto", "Bitcoin", "Trading", "TechnicalAnalysis", "Markets"]
+    },
+    {
+      "category": "market_analysis",
+      "tone": "professional",
+      "structure": "📈 {topic} update: {trend}. Watching closely.",
+      "example": "📈 ETH update: Strong momentum above $2.2k. Watching closely.",
+      "hashtags_pool": ["Ethereum", "DeFi", "Crypto", "Trading", "Markets"]
+    },
+    {
+      "category": "market_analysis",
+      "tone": "professional",
+      "structure": "Market insight: {topic}. {conclusion} 💡",
+      "example": "Market insight: L2 volumes surging. Bullish for scalability. 💡",
+      "hashtags_pool": ["Crypto", "Web3", "Markets", "Analysis", "Blockchain"]
+    }
+  ],
+  "educational": [
+    {
+      "category": "educational",
+      "tone": "didactic",
+      "structure": "How to {action}: {tip}. Simple but effective. 📚",
+      "example": "How to start in DeFi: Begin with stablecoins and proven protocols. Simple but effective. 📚",
+      "hashtags_pool": ["DeFi", "CryptoEducation", "Web3", "LearnCrypto", "Blockchain"]
+    },
+    {
+      "category": "educational",
+      "tone": "didactic",
+      "structure": "Understanding {topic}: {explanation}. Essential knowledge. 🎓",
+      "example": "Understanding gas fees: Network demand drives prices. Essential knowledge. 🎓",
+      "hashtags_pool": ["CryptoEducation", "Ethereum", "Web3", "LearnCrypto", "Blockchain"]
+    },
+    {
+      "category": "educational",
+      "tone": "didactic",
+      "structure": "Crypto 101: {topic}. {key_takeaway} 💡",
+      "example": "Crypto 101: Always verify contract addresses before interacting. 💡",
+      "hashtags_pool": ["CryptoEducation", "Web3", "DeFi", "LearnCrypto", "CryptoSafety"]
+    }
+  ],
+  "news": [
+    {
+      "category": "news",
+      "tone": "informative",
+      "structure": "🚨 Breaking: {headline}. {impact}",
+      "example": "🚨 Breaking: Major exchange announces Base integration. Huge for adoption.",
+      "hashtags_pool": ["CryptoNews", "Base", "Web3", "Crypto", "Breaking"]
+    },
+    {
+      "category": "news",
+      "tone": "informative",
+      "structure": "Latest: {topic}. {detail} 📰",
+      "example": "Latest: New EIP approved for mainnet. Gas optimizations incoming. 📰",
+      "hashtags_pool": ["Ethereum", "CryptoNews", "EIP", "Blockchain", "Development"]
+    },
+    {
+      "category": "news",
+      "tone": "informative",
+      "structure": "Update: {headline}. {context} ⚡",
+      "example": "Update: Protocol TVL hits new ATH. DeFi summer vibes. ⚡",
+      "hashtags_pool": ["DeFi", "CryptoNews", "TVL", "Crypto", "Web3"]
+    }
+  ],
+  "tips": [
+    {
+      "category": "tips",
+      "tone": "helpful",
+      "structure": "Pro tip: {advice}. {benefit} 💎",
+      "example": "Pro tip: Always use a hardware wallet for large holdings. Security first. 💎",
+      "hashtags_pool": ["CryptoTips", "CryptoSecurity", "Web3", "WAGMI", "Crypto"]
+    },
+    {
+      "category": "tips",
+      "tone": "helpful",
+      "structure": "Quick tip: {action}. {reasoning} 🔑",
+      "example": "Quick tip: Set price alerts instead of constantly checking charts. Save your sanity. 🔑",
+      "hashtags_pool": ["CryptoTips", "Trading", "Crypto", "LifeHacks", "HODL"]
+    },
+    {
+      "category": "tips",
+      "tone": "helpful",
+      "structure": "{advice}. Trust me on this one. 👀",
+      "example": "Never share your seed phrase. Not even with 'support'. Trust me on this one. 👀",
+      "hashtags_pool": ["CryptoSecurity", "CryptoTips", "Web3", "DYOR", "Crypto"]
+    }
+  ],
+  "opinion": [
+    {
+      "category": "opinion",
+      "tone": "confident",
+      "structure": "{hot_take} {reasoning} Not financial advice. 🎯",
+      "example": "L2s will flip L1s in TVL within 2 years. Lower fees = better UX. Not financial advice. 🎯",
+      "hashtags_pool": ["CryptoTwitter", "Layer2", "Ethereum", "Web3", "HotTake"]
+    },
+    {
+      "category": "opinion",
+      "tone": "confident",
+      "structure": "Unpopular opinion: {take}. {explanation} 💭",
+      "example": "Unpopular opinion: Most NFT projects won't survive this cycle. Utility matters. 💭",
+      "hashtags_pool": ["NFT", "CryptoTwitter", "Web3", "Opinion", "Crypto"]
+    },
+    {
+      "category": "opinion",
+      "tone": "confident",
+      "structure": "{statement} Change my mind. 🧠",
+      "example": "Base will be the go-to L2 for consumer apps. Change my mind. 🧠",
+      "hashtags_pool": ["Base", "Layer2", "CryptoTwitter", "Web3", "Opinion"]
+    }
+  ],
+  "thread": [
+    {
+      "category": "thread",
+      "tone": "detailed",
+      "structure": "🧵 {topic} - A thread:\n\n1/ {intro}\n\n2/ {point}\n\n3/ More in replies 👇",
+      "example": "🧵 Understanding gas fees - A thread:\n\n1/ Gas fees are the backbone of Ethereum's security model\n\n2/ They prevent spam and compensate validators\n\n3/ More in replies 👇",
+      "hashtags_pool": ["Ethereum", "CryptoEducation", "Web3", "Thread", "DeFi"]
+    },
+    {
+      "category": "thread",
+      "tone": "detailed",
+      "structure": "Let's talk about {topic}:\n\n1/ {opening}\n\n2/ {key_point}\n\n🧵👇",
+      "example": "Let's talk about smart contract security:\n\n1/ Audits are crucial but not foolproof\n\n2/ Community review adds another layer\n\n🧵👇",
+      "hashtags_pool": ["SmartContracts", "Security", "Web3", "DeFi", "Blockchain"]
+    }
+  ],
+  "meme": [
+    {
+      "category": "meme",
+      "tone": "casual",
+      "structure": "{setup}\n\n{punchline}\n\n😂",
+      "example": "Me: I'll just check the charts real quick\n\nAlso me: *still staring 3 hours later*\n\n😂",
+      "hashtags_pool": ["CryptoTwitter", "CryptoMemes", "WAGMI", "HODL", "Crypto"]
+    },
+    {
+      "category": "meme",
+      "tone": "casual",
+      "structure": "POV: {scenario} 💀",
+      "example": "POV: You bought the top and now everyone's a financial advisor 💀",
+      "hashtags_pool": ["CryptoMemes", "CryptoTwitter", "NGMI", "Crypto", "Memes"]
+    }
+  ]
+}
