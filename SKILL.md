@@ -39,6 +39,9 @@ Start credits topup flow (returns deposit address and exact USDC amount).
 ### `/sociclaw paid <txHash>`
 Claim topup after transfer confirmation.
 
+### `/sociclaw update`
+Maintenance command pattern: check/apply latest skill update on host (mapped to CLI `check-update` / `self-update`).
+
 ## Image Generation (SociClaw API)
 ### Provisioning (Recommended)
 

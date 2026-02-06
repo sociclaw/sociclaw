@@ -155,6 +155,8 @@ Preflight and Brand Brain:
 .\.venv\Scripts\python.exe -m sociclaw.scripts.cli smoke
 .\.venv\Scripts\python.exe -m sociclaw.scripts.cli e2e-staging --config-path .sociclaw/runtime_config.json --state-path .tmp/sociclaw_state.json
 .\.venv\Scripts\python.exe -m sociclaw.scripts.cli release-audit --strict
+.\.venv\Scripts\python.exe -m sociclaw.scripts.cli check-update
+.\.venv\Scripts\python.exe -m sociclaw.scripts.cli self-update --yes
 ```
 
 - `check-env` validates critical env/settings before setup.
@@ -173,6 +175,17 @@ Topup flow (txHash):
 `--tx-hash` must be a full Base tx hash (`0x` + 64 hex chars).
 
 Release process checklist: see `RELEASE_CHECKLIST.md`.
+
+## Auto-update for running bots
+
+Use scheduled execution (cron/systemd timer) to let the bot update itself safely:
+
+```bash
+python -m sociclaw.scripts.cli self-update --yes || true
+```
+
+If update succeeded, restart your bot process/service.  
+Recommended policy: run every 6-12 hours with `git pull --ff-only` (already enforced by `self-update`).
 
 ## Telegram Topup (txHash)
 

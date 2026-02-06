@@ -38,6 +38,7 @@ from .scheduler import PostPlan
 from .state_store import StateStore
 from .topup_client import TopupClient
 from .trello_sync import TrelloSync
+from .updater import apply_update, check_for_update
 from .release_audit import scan_forbidden_terms, scan_placeholders
 from .validators import validate_provider, validate_provider_user_id, validate_tx_hash
 
@@ -825,6 +826,69 @@ def cmd_release_audit(args: argparse.Namespace) -> int:
     return 0 if status == "ok" else 1
 
 
+def cmd_check_update(args: argparse.Namespace) -> int:
+    repo_dir = Path(args.repo_dir).resolve() if args.repo_dir else Path(__file__).resolve().parents[2]
+    result = check_for_update(
+        repo_dir,
+        remote=args.remote,
+        branch=args.branch,
+        fetch=not bool(args.no_fetch),
+    )
+    print(json.dumps(result.__dict__, indent=2))
+    return 0 if result.ok else 1
+
+
+def cmd_self_update(args: argparse.Namespace) -> int:
+    repo_dir = Path(args.repo_dir).resolve() if args.repo_dir else Path(__file__).resolve().parents[2]
+
+    check = check_for_update(repo_dir, remote=args.remote, branch=args.branch, fetch=True)
+    if not check.ok:
+        print(json.dumps({"ok": False, "stage": "check", "error": check.error, "repo_dir": str(repo_dir)}, indent=2))
+        return 1
+
+    if not check.update_available:
+        print(
+            json.dumps(
+                {
+                    "ok": True,
+                    "updated": False,
+                    "message": "Already up-to-date",
+                    "current_commit": check.current_commit,
+                    "remote_commit": check.remote_commit,
+                },
+                indent=2,
+            )
+        )
+        return 0
+
+    if not args.yes:
+        print(
+            json.dumps(
+                {
+                    "ok": False,
+                    "updated": False,
+                    "error": "Update available; run again with --yes to apply",
+                    "current_commit": check.current_commit,
+                    "remote_commit": check.remote_commit,
+                },
+                indent=2,
+            )
+        )
+        return 1
+
+    result = apply_update(
+        repo_dir,
+        remote=args.remote,
+        branch=args.branch,
+        allow_dirty=bool(args.allow_dirty),
+        install_requirements=not bool(args.skip_pip),
+        python_bin=args.python_bin,
+    )
+    result["updated"] = bool(result.get("ok"))
+    print(json.dumps(result, indent=2))
+    return 0 if result.get("ok") else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="sociclaw", description="SociClaw CLI")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -1043,6 +1107,23 @@ def build_parser() -> argparse.ArgumentParser:
     p_release_audit.add_argument("--strict", action="store_true", help="Fail on any finding")
     p_release_audit.add_argument("--max-findings", default=200, type=int, help="Max findings to print")
     p_release_audit.set_defaults(func=cmd_release_audit)
+
+    p_check_update = sub.add_parser("check-update", help="Check if a newer commit exists on remote")
+    p_check_update.add_argument("--repo-dir", default=None, help="Local skill repo directory")
+    p_check_update.add_argument("--remote", default="origin")
+    p_check_update.add_argument("--branch", default="main")
+    p_check_update.add_argument("--no-fetch", action="store_true", help="Do not run git fetch before checking")
+    p_check_update.set_defaults(func=cmd_check_update)
+
+    p_self_update = sub.add_parser("self-update", help="Update local skill repo using git pull --ff-only")
+    p_self_update.add_argument("--repo-dir", default=None, help="Local skill repo directory")
+    p_self_update.add_argument("--remote", default="origin")
+    p_self_update.add_argument("--branch", default="main")
+    p_self_update.add_argument("--yes", action="store_true", help="Apply update without confirmation block")
+    p_self_update.add_argument("--allow-dirty", action="store_true", help="Allow update with dirty worktree")
+    p_self_update.add_argument("--skip-pip", action="store_true", help="Skip pip install -r requirements.txt")
+    p_self_update.add_argument("--python-bin", default=None, help="Python interpreter for pip install")
+    p_self_update.set_defaults(func=cmd_self_update)
 
     return p
 
