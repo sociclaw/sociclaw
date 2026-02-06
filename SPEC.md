@@ -45,8 +45,8 @@ SociClaw e uma skill para OpenClaw que automatiza pesquisa, planejamento, geraca
 
 ### API de imagem (SociClaw)
 - Modelo padrão: `nano-banana` (configurável).
-- Gerar: `POST https://sociclaw.com/api/v1?path=generate`
-- Poll: `GET https://sociclaw.com/api/v1/jobs/{job_id}`
+- Gerar: `POST https://api.sociclaw.com/api/v1?path=generate`
+- Poll: `GET https://api.sociclaw.com/api/v1/jobs/{job_id}`
 - Saida: URL da imagem (com backup local).
 
 ### Topup (txHash)
@@ -90,8 +90,8 @@ SociClaw e uma skill para OpenClaw que automatiza pesquisa, planejamento, geraca
 - `XAI_API_KEY`
 - `SOCICLAW_IMAGE_API_KEY` (recomendado; chave da conta de imagens)
 - `SOCICLAW_IMAGE_MODEL` (default: `nano-banana`)
-- `SOCICLAW_IMAGE_GENERATE_URL` (default: `https://sociclaw.com/api/v1?path=generate`)
-- `SOCICLAW_IMAGE_JOBS_URL` (default: `https://sociclaw.com/api/v1/jobs/`)
+- `SOCICLAW_IMAGE_GENERATE_URL` (default: `https://api.sociclaw.com/api/v1?path=generate`)
+- `SOCICLAW_IMAGE_JOBS_URL` (default: `https://api.sociclaw.com/api/v1/jobs/`)
 - `SOCICLAW_IMAGE_API_BASE_URL` (usado no fluxo de topup por SDK)
 - `SOCICLAW_PROVISION_URL` (recomendado; gateway no seu backend)
 - `SOCICLAW_PROVISION_UPSTREAM_URL` (obrigatorio no projeto de API; endpoint upstream de provisionamento)

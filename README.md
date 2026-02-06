@@ -42,8 +42,8 @@ OpenClaw injects per-skill env/config from `openclaw.json`. Example:
     "entries": {
       "sociclaw": {
         "env": {
-          "SOCICLAW_IMAGE_API_BASE_URL": "https://sociclaw.com",
-          "SOCICLAW_PROVISION_URL": "https://sociclaw.com/api/sociclaw/provision",
+          "SOCICLAW_IMAGE_API_BASE_URL": "https://api.sociclaw.com",
+          "SOCICLAW_PROVISION_URL": "https://api.sociclaw.com/api/sociclaw/provision",
           "SOCICLAW_INTERNAL_TOKEN": "optional"
         },
         "config": {
@@ -65,25 +65,15 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-## Vercel Layout (Rewrite)
+## Vercel Layout (Two Projects)
 
 Use two Vercel projects:
 
 1. `website` project (public domain `sociclaw.com`)
-2. `sociclaw` project (API domain, e.g. `sociclaw.vercel.app`)
+2. `sociclaw` project (API domain `api.sociclaw.com`)
 
-On the `website` project, add rewrites so `sociclaw.com/api/*` proxies to the API project:
-
-```json
-{
-  "rewrites": [
-    { "source": "/api/:path*", "destination": "https://sociclaw.vercel.app/api/:path*" }
-  ]
-}
-```
-
-With this, users/bots always call:
-- `https://sociclaw.com/api/sociclaw/provision`
+Users/bots should call:
+- `https://api.sociclaw.com/api/sociclaw/provision`
 
 ## Environment Variables
 
@@ -98,10 +88,10 @@ SOCICLAW_IMAGE_API_KEY=your_sociclaw_image_api_key
 SOCICLAW_IMAGE_MODEL=nano-banana
 
 # SociClaw image API base (topup + image generation)
-SOCICLAW_IMAGE_API_BASE_URL=https://sociclaw.com
+SOCICLAW_IMAGE_API_BASE_URL=https://api.sociclaw.com
 
 # Recommended: provision users via your gateway (Vercel)
-SOCICLAW_PROVISION_URL=https://sociclaw.com/api/sociclaw/provision
+SOCICLAW_PROVISION_URL=https://api.sociclaw.com/api/sociclaw/provision
 SOCICLAW_INTERNAL_TOKEN=your_internal_token  # optional
 SOCICLAW_PROVISION_UPSTREAM_URL=https://<upstream-provider>/api/app-router?action=openclaw-provision
 
@@ -132,7 +122,7 @@ To keep `OPENCLAW_PROVISION_SECRET` server-side, deploy a small proxy:
 Provision and generate an image locally:
 
 ```powershell
-$env:SOCICLAW_PROVISION_URL="https://sociclaw.com/api/sociclaw/provision"
+$env:SOCICLAW_PROVISION_URL="https://api.sociclaw.com/api/sociclaw/provision"
 $env:SOCICLAW_INTERNAL_TOKEN="..."
 
 .\.venv\Scripts\python.exe -m sociclaw.scripts.cli provision-image-gateway --provider telegram --provider-user-id 123

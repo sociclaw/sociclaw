@@ -36,7 +36,7 @@ Show plan progress and integration status.
 To auto-create users + API keys without exposing your admin secret, deploy a small gateway on your backend (Vercel) and set:
 
 ```bash
-SOCICLAW_PROVISION_URL=https://sociclaw.com/api/sociclaw/provision
+SOCICLAW_PROVISION_URL=https://api.sociclaw.com/api/sociclaw/provision
 SOCICLAW_INTERNAL_TOKEN=your_internal_token  # optional
 ```
 
