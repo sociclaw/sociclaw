@@ -14,6 +14,9 @@ from typing import Any, Dict, Optional
 
 import requests
 
+from .http_retry import request_with_retry
+from .validators import validate_provider, validate_provider_user_id
+
 logger = logging.getLogger(__name__)
 
 
@@ -43,6 +46,8 @@ class ProvisioningClient:
         if not self.url:
             raise ValueError("Provisioning URL is required (set --url or SOCICLAW_PROVISION_UPSTREAM_URL)")
         self.timeout_seconds = int(timeout_seconds)
+        self.max_retries = int(os.getenv("SOCICLAW_HTTP_MAX_RETRIES", "3"))
+        self.backoff_base_seconds = float(os.getenv("SOCICLAW_HTTP_BACKOFF_SECONDS", "0.5"))
         self.session = session or requests.Session()
 
     def provision(
@@ -52,20 +57,27 @@ class ProvisioningClient:
         provider_user_id: str,
         create_api_key: bool = True,
     ) -> ProvisionResult:
+        provider = validate_provider(provider)
+        provider_user_id = validate_provider_user_id(provider_user_id)
+
         payload = {
             "provider": provider,
             "provider_user_id": str(provider_user_id),
             "create_api_key": bool(create_api_key),
         }
 
-        resp = self.session.post(
-            self.url,
+        resp = request_with_retry(
+            session=self.session,
+            method="POST",
+            url=self.url,
             headers={
                 "x-openclaw-secret": self.openclaw_secret,
                 "Content-Type": "application/json",
             },
             json=payload,
             timeout=self.timeout_seconds,
+            max_retries=self.max_retries,
+            backoff_base_seconds=self.backoff_base_seconds,
         )
         resp.raise_for_status()
         data = resp.json()

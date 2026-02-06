@@ -1,0 +1,129 @@
+"""
+Brand profile utilities for SociClaw ("Brand Brain").
+
+Stores brand context in a local markdown file so generated content can keep
+consistent tone, audience and vocabulary.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import List, Optional
+import re
+
+
+@dataclass
+class BrandProfile:
+    name: str = ""
+    slogan: str = ""
+    voice_tone: str = "Professional"
+    target_audience: str = ""
+    value_proposition: str = ""
+    key_themes: List[str] = field(default_factory=list)
+    do_not_say: List[str] = field(default_factory=list)
+    keywords: List[str] = field(default_factory=list)
+
+
+def default_brand_profile_path() -> Path:
+    repo_root = Path(__file__).resolve().parents[2]
+    return repo_root / ".sociclaw" / "company_profile.md"
+
+
+def load_brand_profile(path: Optional[Path] = None) -> BrandProfile:
+    file_path = path or default_brand_profile_path()
+    if not file_path.exists():
+        return BrandProfile()
+
+    text = file_path.read_text(encoding="utf-8")
+    profile = BrandProfile()
+    current_list_key: Optional[str] = None
+
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+
+        structured = (
+            re.match(r"^- \*\*([^*]+):\*\*\s*(.*)$", line)
+            or re.match(r"^- \*\*([^*]+)\*\*:\s*(.*)$", line)
+        )
+        if structured:
+            label = structured.group(1).strip().lower()
+            value = structured.group(2).strip()
+            current_list_key = None
+
+            if label == "name":
+                profile.name = value
+            elif label == "slogan":
+                profile.slogan = value
+            elif label in {"voice/tone", "voice"}:
+                profile.voice_tone = value or profile.voice_tone
+            elif label == "target audience":
+                profile.target_audience = value
+            elif label == "value proposition":
+                profile.value_proposition = value
+            elif label == "key themes":
+                profile.key_themes = _parse_inline_list(value)
+                current_list_key = "key_themes"
+            elif label == "do not say":
+                profile.do_not_say = _parse_inline_list(value)
+                current_list_key = "do_not_say"
+            elif label == "keywords":
+                profile.keywords = _parse_inline_list(value)
+                current_list_key = "keywords"
+            continue
+
+        item = re.match(r"^- (.+)$", line)
+        if item and current_list_key:
+            getattr(profile, current_list_key).append(item.group(1).strip())
+
+    profile.key_themes = _dedupe(profile.key_themes)
+    profile.do_not_say = _dedupe(profile.do_not_say)
+    profile.keywords = _dedupe(profile.keywords)
+    return profile
+
+
+def save_brand_profile(profile: BrandProfile, path: Optional[Path] = None) -> Path:
+    file_path = path or default_brand_profile_path()
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    lines = [
+        "# Brand Profile",
+        "",
+        "## Identity",
+        f"- **Name:** {profile.name}",
+        f"- **Slogan:** {profile.slogan}",
+        f"- **Voice/Tone:** {profile.voice_tone}",
+        "",
+        "## Strategic Context",
+        f"- **Target Audience:** {profile.target_audience}",
+        f"- **Value Proposition:** {profile.value_proposition}",
+        f"- **Key Themes:** {', '.join(profile.key_themes)}",
+        "",
+        "## Constraints",
+        f"- **Do Not Say:** {', '.join(profile.do_not_say)}",
+        f"- **Keywords:** {', '.join(profile.keywords)}",
+        "",
+    ]
+
+    file_path.write_text("\n".join(lines), encoding="utf-8")
+    return file_path
+
+
+def _parse_inline_list(value: str) -> List[str]:
+    if not value:
+        return []
+    return [x.strip() for x in value.split(",") if x.strip()]
+
+
+def _dedupe(values: List[str]) -> List[str]:
+    out: List[str] = []
+    seen = set()
+    for value in values:
+        key = value.strip().lower()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append(value.strip())
+    return out

@@ -136,6 +136,7 @@ def test_trello_sync(sample_generated_posts):
     board = MagicMock()
     list_obj = MagicMock()
     list_obj.name = "Backlog"
+    list_obj.list_cards.return_value = []
     card = MagicMock()
     list_obj.add_card.return_value = card
 
@@ -147,12 +148,42 @@ def test_trello_sync(sample_generated_posts):
 
     client.get_board.return_value = board
 
-    sync = TrelloSync(api_key="key", token="token", board_id="board", client=client)
+    sync = TrelloSync(api_key="key", token="token", board_id="board", client=client, request_delay_seconds=0)
     sync.setup_board()
     created = sync.create_card(sample_generated_posts[0])
 
     assert created == card
     list_obj.add_card.assert_called_once()
+
+
+def test_trello_sync_idempotent_card_creation(sample_generated_posts):
+    client = MagicMock()
+    board = MagicMock()
+    list_obj = MagicMock()
+    list_obj.name = "Backlog"
+
+    existing_card = MagicMock()
+    existing_card.description = ""
+    list_obj.list_cards.return_value = [existing_card]
+    list_obj.add_card.return_value = MagicMock()
+
+    board.list_lists.return_value = [list_obj]
+    board.get_labels.return_value = []
+    board.add_label.return_value = MagicMock()
+    existing_checklist = MagicMock()
+    existing_checklist.name = "Approval"
+    existing_card.get_checklists.return_value = [existing_checklist]
+    client.get_board.return_value = board
+
+    sync = TrelloSync(api_key="key", token="token", board_id="board", client=client, request_delay_seconds=0)
+    sync.setup_board()
+
+    marker = sync._build_post_identity(sample_generated_posts[0])
+    existing_card.description = f"some text\n\n[SociClaw-ID:{marker}]"
+
+    created = sync.create_card(sample_generated_posts[0])
+    assert created == existing_card
+    list_obj.add_card.assert_not_called()
 
 
 def test_notion_sync(sample_generated_posts):

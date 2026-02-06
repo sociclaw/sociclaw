@@ -17,6 +17,7 @@ from typing import List, Dict, Optional
 from pathlib import Path
 
 from .scheduler import PostPlan
+from .brand_profile import BrandProfile, load_brand_profile
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -66,7 +67,12 @@ class ContentGenerator:
     # Maximum tweet length
     MAX_TWEET_LENGTH = 280
 
-    def __init__(self, templates_path: Optional[Path] = None):
+    def __init__(
+        self,
+        templates_path: Optional[Path] = None,
+        brand_profile_path: Optional[Path] = None,
+        brand_profile: Optional[BrandProfile] = None,
+    ):
         """
         Initialize the ContentGenerator.
 
@@ -80,6 +86,8 @@ class ContentGenerator:
 
         self.templates_path = templates_path
         self.templates: Dict[str, List[Dict]] = {}
+        self.brand_profile_path = brand_profile_path
+        self.brand_profile = brand_profile or load_brand_profile(brand_profile_path)
         self._load_templates()
 
     def _load_templates(self) -> None:
@@ -243,6 +251,9 @@ class ContentGenerator:
             # Fallback to example if no structure
             text = template.get("example", plan.topic)
 
+        # Enforce brand constraints before hashtags/length handling.
+        text = self._apply_brand_constraints(text)
+
         # Add hashtags if they fit
         hashtags_text = " ".join(f"#{tag}" for tag in plan.hashtags[:3])
 
@@ -257,6 +268,33 @@ class ContentGenerator:
                 text = f"{text} {hashtags_text}"
 
         return text.strip()
+
+    def _apply_brand_constraints(self, text: str) -> str:
+        """
+        Apply optional Brand Brain rules:
+        - remove forbidden terms
+        - inject one required keyword when missing
+        """
+        profile = self.brand_profile
+
+        # Remove blocked terms (case-insensitive, whole-word).
+        for blocked in profile.do_not_say:
+            token = blocked.strip()
+            if not token:
+                continue
+            text = re.sub(rf"\b{re.escape(token)}\b", "", text, flags=re.IGNORECASE)
+
+        # Ensure at least one required keyword appears.
+        if profile.keywords:
+            has_any_keyword = any(k.lower() in text.lower() for k in profile.keywords if k.strip())
+            if not has_any_keyword:
+                primary = profile.keywords[0].strip()
+                if primary:
+                    text = f"{text} {primary}".strip()
+
+        # Cleanup whitespace left by removals.
+        text = re.sub(r"\s{2,}", " ", text).strip()
+        return text
 
     def _generate_image_prompt(self, plan: PostPlan, text: str) -> str:
         """
@@ -285,8 +323,20 @@ class ContentGenerator:
 
         style = category_styles.get(plan.category, base_style)
 
+        brand_context_parts = []
+        if self.brand_profile.name:
+            brand_context_parts.append(f"brand {self.brand_profile.name}")
+        if self.brand_profile.voice_tone:
+            brand_context_parts.append(f"tone {self.brand_profile.voice_tone}")
+        if self.brand_profile.key_themes:
+            brand_context_parts.append(f"themes {', '.join(self.brand_profile.key_themes[:3])}")
+
+        brand_context = ", ".join(brand_context_parts)
+        if brand_context:
+            brand_context = f", {brand_context}"
+
         # Build prompt
-        prompt = f"{plan.topic}, {style}, 1024x1024, high quality, digital art"
+        prompt = f"{plan.topic}, {style}{brand_context}, 1024x1024, high quality, digital art"
 
         return prompt
 

@@ -22,6 +22,9 @@ from typing import Any, Dict, Optional
 
 import requests
 
+from .http_retry import request_with_retry
+from .validators import validate_provider, validate_provider_user_id
+
 
 @dataclass(frozen=True)
 class ProvisionResult:
@@ -46,6 +49,8 @@ class SociClawProvisioningGatewayClient:
         self.url = url.strip()
         self.internal_token = internal_token.strip() if internal_token else None
         self.timeout_seconds = int(timeout_seconds)
+        self.max_retries = 3
+        self.backoff_base_seconds = 0.5
         self.session = session or requests.Session()
 
     def provision(
@@ -55,6 +60,9 @@ class SociClawProvisioningGatewayClient:
         provider_user_id: str,
         create_api_key: bool = True,
     ) -> ProvisionResult:
+        provider = validate_provider(provider)
+        provider_user_id = validate_provider_user_id(provider_user_id)
+
         payload = {
             "provider": provider,
             "provider_user_id": str(provider_user_id),
@@ -65,11 +73,15 @@ class SociClawProvisioningGatewayClient:
         if self.internal_token:
             headers["Authorization"] = f"Bearer {self.internal_token}"
 
-        resp = self.session.post(
-            self.url,
+        resp = request_with_retry(
+            session=self.session,
+            method="POST",
+            url=self.url,
             headers=headers,
             json=payload,
             timeout=self.timeout_seconds,
+            max_retries=self.max_retries,
+            backoff_base_seconds=self.backoff_base_seconds,
         )
         resp.raise_for_status()
         data = resp.json()

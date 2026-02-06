@@ -15,6 +15,8 @@ from typing import Any, Dict, Optional
 
 import requests
 
+from .http_retry import request_with_retry
+
 logger = logging.getLogger(__name__)
 
 
@@ -59,6 +61,8 @@ class ImageProviderClient:
             )
         self.jobs_base_url += "/"
         self.timeout_seconds = int(timeout_seconds)
+        self.max_retries = int(os.getenv("SOCICLAW_HTTP_MAX_RETRIES", "3"))
+        self.backoff_base_seconds = float(os.getenv("SOCICLAW_HTTP_BACKOFF_SECONDS", "0.5"))
         self.session = session or requests.Session()
 
     def create_job(
@@ -84,21 +88,29 @@ class ImageProviderClient:
         if extra:
             payload.update(extra)
 
-        resp = self.session.post(
-            self.generate_url,
+        resp = request_with_retry(
+            session=self.session,
+            method="POST",
+            url=self.generate_url,
             headers={"Authorization": f"Bearer {self.api_key}"},
             json=payload,
             timeout=self.timeout_seconds,
+            max_retries=self.max_retries,
+            backoff_base_seconds=self.backoff_base_seconds,
         )
         resp.raise_for_status()
         return resp.json()
 
     def get_job(self, job_id: str) -> Dict[str, Any]:
         url = f"{self.jobs_base_url}{job_id}"
-        resp = self.session.get(
-            url,
+        resp = request_with_retry(
+            session=self.session,
+            method="GET",
+            url=url,
             headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
             timeout=max(self.timeout_seconds, 60),
+            max_retries=self.max_retries,
+            backoff_base_seconds=self.backoff_base_seconds,
         )
         resp.raise_for_status()
         return resp.json()

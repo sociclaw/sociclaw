@@ -18,6 +18,9 @@ Welcome message + quick help (recommended). If the user is not configured yet, s
 ### `/sociclaw setup`
 Configure niche, posting frequency, and integrations.
 
+### `/sociclaw briefing`
+Capture brand context (tone, audience, keywords, forbidden terms) to improve content quality.
+
 ### `/sociclaw plan [quarter]`
 Generate a quarterly content plan (90 days x 2 posts/day = 180 ideas).
 
@@ -29,6 +32,12 @@ Force a sync to Trello/Notion.
 
 ### `/sociclaw status`
 Show plan progress and integration status.
+
+### `/sociclaw pay`
+Start credits topup flow (returns deposit address and exact USDC amount).
+
+### `/sociclaw paid <txHash>`
+Claim topup after transfer confirmation.
 
 ## Image Generation (SociClaw API)
 ### Provisioning (Recommended)
@@ -71,6 +80,12 @@ Example:
 
 ```bash
 git clone https://github.com/sociclaw/sociclaw.git ~/.openclaw/skills/sociclaw
+```
+
+One-command install/update (Linux/macOS):
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/sociclaw/sociclaw/main/tools/update_sociclaw.sh)
 ```
 
 Then start OpenClaw and run:

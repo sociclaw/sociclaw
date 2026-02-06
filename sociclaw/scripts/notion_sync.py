@@ -56,41 +56,41 @@ class NotionSync:
                 raise ImportError("notion-client is required for Notion sync")
             self.client = NotionClient(auth=self.api_key)
 
-    def create_page(self, post: GeneratedPost, status: str = "Rascunho", image_url: Optional[str] = None):
+    def create_page(self, post: GeneratedPost, status: str = "Draft", image_url: Optional[str] = None):
         """
         Create a Notion page for a generated post.
 
         Args:
             post: GeneratedPost instance
-            status: Initial status (Rascunho/Revisão/Agendado/Publicado)
+            status: Initial status (Draft/Review/Scheduled/Published)
             image_url: Optional image URL to attach
 
         Returns:
             Created page object
         """
         properties = {
-            "Título": {
+            "Title": {
                 "title": [{"text": {"content": self._summarize_title(post.text)}}]
             },
-            "Conteúdo": {
+            "Content": {
                 "rich_text": [{"text": {"content": post.text}}]
             },
-            "Data": {
+            "Date": {
                 "date": {"start": self._format_datetime(post)}
             },
             "Status": {
                 "select": {"name": status}
             },
-            "Categoria": {
+            "Category": {
                 "multi_select": [{"name": post.category}]
             },
-            "Engajamento": {
+            "Engagement": {
                 "number": 0
             },
         }
 
         if image_url:
-            properties["Imagem"] = {
+            properties["Image"] = {
                 "files": [
                     {"name": "image", "type": "external", "external": {"url": image_url}}
                 ]
@@ -111,14 +111,14 @@ class NotionSync:
 
     def get_pending_posts(self) -> List[dict]:
         """
-        Fetch posts in Rascunho or Revisão status.
+        Fetch posts in Draft or Review status.
         """
         result = self.client.databases.query(
             database_id=self.database_id,
             filter={
                 "or": [
-                    {"property": "Status", "select": {"equals": "Rascunho"}},
-                    {"property": "Status", "select": {"equals": "Revisão"}},
+                    {"property": "Status", "select": {"equals": "Draft"}},
+                    {"property": "Status", "select": {"equals": "Review"}},
                 ]
             },
         )

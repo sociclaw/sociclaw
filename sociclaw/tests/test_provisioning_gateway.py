@@ -5,6 +5,7 @@ class DummyResponse:
     def __init__(self, json_data):
         self._json = json_data
         self.status_checked = False
+        self.status_code = 200
 
     def raise_for_status(self):
         self.status_checked = True
@@ -22,6 +23,11 @@ class DummySession:
     def post(self, url, headers=None, json=None, timeout=None):
         self.post_calls.append({"url": url, "headers": headers or {}, "json": json, "timeout": timeout})
         return DummyResponse(self.response_json)
+
+    def request(self, method, url, headers=None, json=None, timeout=None):
+        if str(method).upper() != "POST":
+            raise AssertionError(f"Unexpected method: {method}")
+        return self.post(url, headers=headers, json=json, timeout=timeout)
 
 
 def test_gateway_provisioning_sends_optional_auth_header():

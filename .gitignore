@@ -31,6 +31,8 @@ nul
 # Local scratch
 .tmp/
 .pytest_cache/
+.sociclaw/
+*.db
 
 # Ralph (cloned repo, not scripts/ralph)
 /ralph/
@@ -48,3 +50,6 @@ node_modules/
 *.jpg
 *.jpeg
 !templates/*.png
+
+MASTER_PLAN_SOCICLAW.md
+ROADMAP.md

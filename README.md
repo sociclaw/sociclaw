@@ -32,6 +32,12 @@ So users can install by cloning this repo:
 git clone https://github.com/sociclaw/sociclaw.git ~/.openclaw/skills/sociclaw
 ```
 
+One-command install/update (Linux/macOS):
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/sociclaw/sociclaw/main/tools/update_sociclaw.sh)
+```
+
 ## OpenClaw Config (env + settings)
 
 OpenClaw injects per-skill env/config from `openclaw.json`. Example:
@@ -91,7 +97,7 @@ SOCICLAW_IMAGE_API_BASE_URL=https://api.sociclaw.com
 
 # Recommended: provision users via your gateway (Vercel)
 SOCICLAW_PROVISION_URL=https://api.sociclaw.com/api/sociclaw/provision
-SOCICLAW_PROVISION_UPSTREAM_URL=https://<upstream-provider>/api/app-router?action=openclaw-provision
+SOCICLAW_PROVISION_UPSTREAM_URL=https://example-upstream.com/api/app-router?action=openclaw-provision
 
 # Optional server-only hardening (do not distribute to end-user clients)
 # SOCICLAW_INTERNAL_TOKEN=your_internal_token
@@ -118,6 +124,11 @@ To keep `OPENCLAW_PROVISION_SECRET` server-side, deploy a small proxy:
   - `OPENCLAW_PROVISION_SECRET` (required)
   - `SOCICLAW_INTERNAL_TOKEN` (optional; only for server-to-server callers you control)
   - `SOCICLAW_PROVISION_UPSTREAM_URL` (required; upstream provisioning endpoint)
+  - `SOCICLAW_RATE_LIMIT_WINDOW_SECONDS` (optional; default `3600`)
+  - `SOCICLAW_RATE_LIMIT_MAX_PER_IP` (optional; default `20`)
+  - `SOCICLAW_RATE_LIMIT_MAX_PER_USER` (optional; default `5`)
+  - `SOCICLAW_RATE_LIMIT_MAX_KEYS` (optional; default `5000`)
+  - `SOCICLAW_RATE_LIMIT_DISABLED` (optional; default `false`)
 
 If end-users call provisioning directly from their own OpenClaw runtime, leave
 `SOCICLAW_INTERNAL_TOKEN` unset and enforce abuse controls on the API project
@@ -133,6 +144,35 @@ $env:SOCICLAW_PROVISION_URL="https://api.sociclaw.com/api/sociclaw/provision"
 .\.venv\Scripts\python.exe -m sociclaw.scripts.cli provision-image-gateway --provider telegram --provider-user-id 123
 .\.venv\Scripts\python.exe -m sociclaw.scripts.cli generate-image --provider telegram --provider-user-id 123 --prompt "minimal blue bird logo"
 ```
+
+Preflight and Brand Brain:
+
+```powershell
+.\.venv\Scripts\python.exe -m sociclaw.scripts.cli check-env
+.\.venv\Scripts\python.exe -m sociclaw.scripts.cli briefing
+.\.venv\Scripts\python.exe -m sociclaw.scripts.cli setup-wizard --non-interactive --provider telegram --provider-user-id 123 --user-niche crypto --posting-frequency 2/day
+.\.venv\Scripts\python.exe -m sociclaw.scripts.cli doctor
+.\.venv\Scripts\python.exe -m sociclaw.scripts.cli smoke
+.\.venv\Scripts\python.exe -m sociclaw.scripts.cli e2e-staging --config-path .sociclaw/runtime_config.json --state-path .tmp/sociclaw_state.json
+.\.venv\Scripts\python.exe -m sociclaw.scripts.cli release-audit --strict
+```
+
+- `check-env` validates critical env/settings before setup.
+- `briefing` creates/updates `.sociclaw/company_profile.md` used by content generation.
+- Trello sync now includes an internal post marker (`SociClaw-ID`) to avoid duplicate cards on retries.
+
+Topup flow (txHash):
+
+```powershell
+.\.venv\Scripts\python.exe -m sociclaw.scripts.cli topup-start --provider telegram --provider-user-id 123 --amount-usd 5
+.\.venv\Scripts\python.exe -m sociclaw.scripts.cli topup-claim --provider telegram --provider-user-id 123 --tx-hash 0x... --wait
+.\.venv\Scripts\python.exe -m sociclaw.scripts.cli topup-status --provider telegram --provider-user-id 123
+.\.venv\Scripts\python.exe -m sociclaw.scripts.cli generate-image --provider telegram --provider-user-id 123 --prompt "test image" --dry-run
+```
+
+`--tx-hash` must be a full Base tx hash (`0x` + 64 hex chars).
+
+Release process checklist: see `RELEASE_CHECKLIST.md`.
 
 ## Telegram Topup (txHash)
 

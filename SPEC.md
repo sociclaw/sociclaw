@@ -58,18 +58,18 @@ SociClaw e uma skill para OpenClaw que automatiza pesquisa, planejamento, geraca
 
 ### Trello
 - Board: `SociClaw Content Calendar`.
-- Listas: Backlog, Q1/Q2/Q3/Q4 2026 (meses), Em Revisao, Agendado, Publicado.
+- Lists: Backlog, Q1/Q2/Q3/Q4 2026 (months), Review, Scheduled, Published.
 - Campos do card: titulo, descricao, due date, labels, checklist.
 
 ### Notion
 - Database properties:
-  - `Titulo` (title)
-  - `Conteudo` (rich_text)
-  - `Data` (date)
+  - `Title` (title)
+  - `Content` (rich_text)
+  - `Date` (date)
   - `Status` (select)
-  - `Categoria` (multi_select)
-  - `Imagem` (files, external)
-  - `Engajamento` (number)
+  - `Category` (multi_select)
+  - `Image` (files, external)
+  - `Engagement` (number)
 
 ### Creditos (off-chain)
 - Os creditos sao gerenciados pela conta do usuario no SociClaw.
@@ -80,11 +80,12 @@ SociClaw e uma skill para OpenClaw que automatiza pesquisa, planejamento, geraca
 
 ## Fluxos Principais
 1. Setup inicial (nicho, frequencia, integracoes).
-2. Pesquisa de tendencias (30 dias).
-3. Planejamento trimestral (180 ideias).
-4. Geracao diaria de texto e imagem.
-5. Sincronizacao Trello/Notion.
-6. Geracao de imagens com SociClaw Credits.
+2. Briefing de marca (`company_profile.md`) para contexto editorial.
+3. Pesquisa de tendencias (30 dias).
+4. Planejamento trimestral (180 ideias).
+5. Geracao diaria de texto e imagem.
+6. Sincronizacao Trello/Notion.
+7. Geracao de imagens com SociClaw Credits.
 
 ## Variaveis de Ambiente
 - `XAI_API_KEY`
