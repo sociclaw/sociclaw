@@ -12,6 +12,7 @@ sociclaw/                   # Python package (skill logic)
   templates/                # post/calendar templates
   fixtures/                 # sample data
   tests/                    # pytest
+api/sociclaw/provision.js   # Vercel API gateway for provisioning
 src/lib/sociclaw/           # Optional TS helper SDK (topup client)
 SKILL.md                    # OpenClaw skill definition (English)
 SPEC.md                     # Technical notes
@@ -64,6 +65,26 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
+## Vercel Layout (Rewrite)
+
+Use two Vercel projects:
+
+1. `website` project (public domain `sociclaw.com`)
+2. `sociclaw` project (API domain, e.g. `sociclaw.vercel.app`)
+
+On the `website` project, add rewrites so `sociclaw.com/api/*` proxies to the API project:
+
+```json
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://sociclaw.vercel.app/api/:path*" }
+  ]
+}
+```
+
+With this, users/bots always call:
+- `https://sociclaw.com/api/sociclaw/provision`
+
 ## Environment Variables
 
 Create a `.env` at the repo root:
@@ -82,7 +103,7 @@ SOCICLAW_IMAGE_API_BASE_URL=https://sociclaw.com
 # Recommended: provision users via your gateway (Vercel)
 SOCICLAW_PROVISION_URL=https://sociclaw.com/api/sociclaw/provision
 SOCICLAW_INTERNAL_TOKEN=your_internal_token  # optional
-SOCICLAW_PROVISION_UPSTREAM_URL=https://sociclaw.com/api/app-router?action=openclaw-provision
+SOCICLAW_PROVISION_UPSTREAM_URL=https://<upstream-provider>/api/app-router?action=openclaw-provision
 
 # Trello (optional)
 TRELLO_API_KEY=your_trello_key
@@ -96,15 +117,15 @@ NOTION_DATABASE_ID=your_database_id
 # SociClaw Credits are off-chain; no on-chain config needed.
 ```
 
-## Provisioning Gateway (Vercel / your backend)
+## Provisioning Gateway (API Project)
 
 To keep `OPENCLAW_PROVISION_SECRET` server-side, deploy a small proxy:
 
-- Source: in your private website/backend repo (`sociclaw/website`)
-- Vercel env vars:
+- Source: `api/sociclaw/provision.js` (this repo, API project)
+- API project env vars:
   - `OPENCLAW_PROVISION_SECRET` (required)
   - `SOCICLAW_INTERNAL_TOKEN` (optional; protects the endpoint)
-  - `SOCICLAW_PROVISION_UPSTREAM_URL` (optional; upstream provisioning endpoint override)
+  - `SOCICLAW_PROVISION_UPSTREAM_URL` (required; upstream provisioning endpoint)
 
 ## MVP CLI (Local)
 

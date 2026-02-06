@@ -10,6 +10,7 @@ SociClaw e uma skill para OpenClaw que automatiza pesquisa, planejamento, geraca
 - `sociclaw/scripts/image_generator.py`: gera imagens (provider) com controle de creditos e backup local.
 - `sociclaw/scripts/provisioning_client.py`: provisiona conta/API key no provider (uso server-side).
 - `sociclaw/scripts/provisioning_gateway.py`: cliente para provisionamento via gateway (recomendado).
+- `api/sociclaw/provision.js`: gateway API (Vercel) que protege `OPENCLAW_PROVISION_SECRET`.
 - `sociclaw/scripts/trello_sync.py`: sincroniza posts com Trello.
 - `sociclaw/scripts/notion_sync.py`: sincroniza posts com Notion.
 - (Opcional futuro) fluxo on-chain (ver ROADMAP.md).
@@ -93,7 +94,7 @@ SociClaw e uma skill para OpenClaw que automatiza pesquisa, planejamento, geraca
 - `SOCICLAW_IMAGE_JOBS_URL` (default: `https://sociclaw.com/api/v1/jobs/`)
 - `SOCICLAW_IMAGE_API_BASE_URL` (usado no fluxo de topup por SDK)
 - `SOCICLAW_PROVISION_URL` (recomendado; gateway no seu backend)
-- `SOCICLAW_PROVISION_UPSTREAM_URL` (opcional; endpoint upstream de provisionamento)
+- `SOCICLAW_PROVISION_UPSTREAM_URL` (obrigatorio no projeto de API; endpoint upstream de provisionamento)
 - `SOCICLAW_INTERNAL_TOKEN` (opcional; protege o gateway)
 - `OPENCLAW_PROVISION_SECRET` (admin-only; fica só no seu backend)
 - `TRELLO_API_KEY`

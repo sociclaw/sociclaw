@@ -38,10 +38,10 @@ To auto-create users + API keys without exposing your admin secret, deploy a sma
 ```bash
 SOCICLAW_PROVISION_URL=https://sociclaw.com/api/sociclaw/provision
 SOCICLAW_INTERNAL_TOKEN=your_internal_token  # optional
-SOCICLAW_PROVISION_UPSTREAM_URL=https://sociclaw.com/api/app-router?action=openclaw-provision
 ```
 
 The gateway keeps `OPENCLAW_PROVISION_SECRET` **server-side**. End-users never see it.
+`SOCICLAW_PROVISION_UPSTREAM_URL` is configured only on your API project.
 
 ### Single-Account Mode (Optional)
 
