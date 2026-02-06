@@ -159,7 +159,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_prox.add_argument(
         "--internal-token",
         default=os.getenv("SOCICLAW_INTERNAL_TOKEN"),
-        help="Optional. If set, sent as Authorization: Bearer <token>.",
+        help="Optional. Use only if your gateway requires server-side auth.",
     )
     p_prox.add_argument("--state-path", default=None, help="Override state path (defaults to .tmp/sociclaw_state.json)")
 

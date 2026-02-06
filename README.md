@@ -43,8 +43,7 @@ OpenClaw injects per-skill env/config from `openclaw.json`. Example:
       "sociclaw": {
         "env": {
           "SOCICLAW_IMAGE_API_BASE_URL": "https://api.sociclaw.com",
-          "SOCICLAW_PROVISION_URL": "https://api.sociclaw.com/api/sociclaw/provision",
-          "SOCICLAW_INTERNAL_TOKEN": "optional"
+          "SOCICLAW_PROVISION_URL": "https://api.sociclaw.com/api/sociclaw/provision"
         },
         "config": {
           "userNiche": "crypto",
@@ -92,8 +91,10 @@ SOCICLAW_IMAGE_API_BASE_URL=https://api.sociclaw.com
 
 # Recommended: provision users via your gateway (Vercel)
 SOCICLAW_PROVISION_URL=https://api.sociclaw.com/api/sociclaw/provision
-SOCICLAW_INTERNAL_TOKEN=your_internal_token  # optional
 SOCICLAW_PROVISION_UPSTREAM_URL=https://<upstream-provider>/api/app-router?action=openclaw-provision
+
+# Optional server-only hardening (do not distribute to end-user clients)
+# SOCICLAW_INTERNAL_TOKEN=your_internal_token
 
 # Trello (optional)
 TRELLO_API_KEY=your_trello_key
@@ -115,8 +116,12 @@ To keep `OPENCLAW_PROVISION_SECRET` server-side, deploy a small proxy:
 - Vercel config: `vercel.json` (API-only deploy, no vite build)
 - API project env vars:
   - `OPENCLAW_PROVISION_SECRET` (required)
-  - `SOCICLAW_INTERNAL_TOKEN` (optional; protects the endpoint)
+  - `SOCICLAW_INTERNAL_TOKEN` (optional; only for server-to-server callers you control)
   - `SOCICLAW_PROVISION_UPSTREAM_URL` (required; upstream provisioning endpoint)
+
+If end-users call provisioning directly from their own OpenClaw runtime, leave
+`SOCICLAW_INTERNAL_TOKEN` unset and enforce abuse controls on the API project
+(rate limits, provider_user_id validation, monitoring).
 
 ## MVP CLI (Local)
 
@@ -124,7 +129,6 @@ Provision and generate an image locally:
 
 ```powershell
 $env:SOCICLAW_PROVISION_URL="https://api.sociclaw.com/api/sociclaw/provision"
-$env:SOCICLAW_INTERNAL_TOKEN="..."
 
 .\.venv\Scripts\python.exe -m sociclaw.scripts.cli provision-image-gateway --provider telegram --provider-user-id 123
 .\.venv\Scripts\python.exe -m sociclaw.scripts.cli generate-image --provider telegram --provider-user-id 123 --prompt "minimal blue bird logo"

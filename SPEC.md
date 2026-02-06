@@ -95,7 +95,7 @@ SociClaw e uma skill para OpenClaw que automatiza pesquisa, planejamento, geraca
 - `SOCICLAW_IMAGE_API_BASE_URL` (usado no fluxo de topup por SDK)
 - `SOCICLAW_PROVISION_URL` (recomendado; gateway no seu backend)
 - `SOCICLAW_PROVISION_UPSTREAM_URL` (obrigatorio no projeto de API; endpoint upstream de provisionamento)
-- `SOCICLAW_INTERNAL_TOKEN` (opcional; protege o gateway)
+- `SOCICLAW_INTERNAL_TOKEN` (opcional; recomendado apenas para chamadas server-to-server controladas por voce)
 - `OPENCLAW_PROVISION_SECRET` (admin-only; fica só no seu backend)
 - `TRELLO_API_KEY`
 - `TRELLO_TOKEN`

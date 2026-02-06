@@ -9,10 +9,13 @@
 //   Authorization: Bearer <SOCICLAW_INTERNAL_TOKEN>
 
 const UPSTREAM_URL = process.env.SOCICLAW_PROVISION_UPSTREAM_URL;
+const PROVIDER_PATTERN = /^[a-z0-9_-]{2,32}$/i;
+const PROVIDER_USER_ID_PATTERN = /^[a-zA-Z0-9:_@.\-]{1,128}$/;
 
 function sendJson(res, status, payload) {
   res.statusCode = status;
   res.setHeader("Content-Type", "application/json; charset=utf-8");
+  res.setHeader("Cache-Control", "no-store");
   res.end(JSON.stringify(payload));
 }
 
@@ -55,9 +58,18 @@ export default async function handler(req, res) {
     return sendJson(res, 400, { error: "Missing required fields: provider, provider_user_id" });
   }
 
+  const providerNormalized = String(provider).trim();
+  const providerUserIdNormalized = String(provider_user_id).trim();
+  if (!PROVIDER_PATTERN.test(providerNormalized)) {
+    return sendJson(res, 400, { error: "Invalid provider format" });
+  }
+  if (!PROVIDER_USER_ID_PATTERN.test(providerUserIdNormalized)) {
+    return sendJson(res, 400, { error: "Invalid provider_user_id format" });
+  }
+
   const payload = {
-    provider: String(provider),
-    provider_user_id: String(provider_user_id),
+    provider: providerNormalized,
+    provider_user_id: providerUserIdNormalized,
     create_api_key: Boolean(create_api_key),
   };
 
