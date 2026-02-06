@@ -154,7 +154,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_prox.add_argument(
         "--url",
         default=os.getenv("SOCICLAW_PROVISION_URL"),
-        help="Gateway URL (e.g. https://<your-app>.vercel.app/api/sociclaw/provision)",
+        help="Gateway URL (e.g. https://sociclaw.com/api/sociclaw/provision)",
     )
     p_prox.add_argument(
         "--internal-token",

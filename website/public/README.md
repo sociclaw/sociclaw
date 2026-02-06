@@ -36,12 +36,12 @@ SOCICLAW_IMAGE_API_KEY=your_sociclaw_image_api_key
 SOCICLAW_IMAGE_MODEL=nano-banana
 
 # SociClaw image API base
-SOCICLAW_IMAGE_API_BASE_URL=https://<your-image-api-domain>
+SOCICLAW_IMAGE_API_BASE_URL=https://sociclaw.com
 
 # Recommended: provision users via your gateway (Vercel)
-SOCICLAW_PROVISION_URL=https://<your-app>.vercel.app/api/sociclaw/provision
+SOCICLAW_PROVISION_URL=https://sociclaw.com/api/sociclaw/provision
 SOCICLAW_INTERNAL_TOKEN=your_internal_token  # optional
-SOCICLAW_PROVISION_UPSTREAM_URL=https://<your-image-api-domain>/api/app-router?action=openclaw-provision
+SOCICLAW_PROVISION_UPSTREAM_URL=https://sociclaw.com/api/app-router?action=openclaw-provision
 
 # Admin-only (server-side): provisioning secret used by your gateway
 OPENCLAW_PROVISION_SECRET=your_openclaw_provision_secret

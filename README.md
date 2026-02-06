@@ -2,7 +2,7 @@
 
 Autonomous agent to research, plan, and generate X (Twitter) posts - with AI images and Trello/Notion sync. Credits run as off-chain SociClaw Credits.
 
-Website: https://sociclaw.xyz
+Website: https://sociclaw.com
 
 ## Repo Structure
 
@@ -28,7 +28,7 @@ OpenClaw can load skills from:
 So users can install by cloning this repo:
 
 ```bash
-git clone https://github.com/<your-org-or-user>/sociclaw ~/.openclaw/skills/sociclaw
+git clone https://github.com/sociclaw/sociclaw.git ~/.openclaw/skills/sociclaw
 ```
 
 ## OpenClaw Config (env + settings)
@@ -41,8 +41,8 @@ OpenClaw injects per-skill env/config from `openclaw.json`. Example:
     "entries": {
       "sociclaw": {
         "env": {
-          "SOCICLAW_IMAGE_API_BASE_URL": "https://<your-image-api-domain>",
-          "SOCICLAW_PROVISION_URL": "https://<your-app>.vercel.app/api/sociclaw/provision",
+          "SOCICLAW_IMAGE_API_BASE_URL": "https://sociclaw.com",
+          "SOCICLAW_PROVISION_URL": "https://sociclaw.com/api/sociclaw/provision",
           "SOCICLAW_INTERNAL_TOKEN": "optional"
         },
         "config": {
@@ -85,12 +85,12 @@ SOCICLAW_IMAGE_API_KEY=your_sociclaw_image_api_key
 SOCICLAW_IMAGE_MODEL=nano-banana
 
 # SociClaw image API base (topup + image generation)
-SOCICLAW_IMAGE_API_BASE_URL=https://<your-image-api-domain>
+SOCICLAW_IMAGE_API_BASE_URL=https://sociclaw.com
 
 # Recommended: provision users via your gateway (Vercel)
-SOCICLAW_PROVISION_URL=https://<your-app>.vercel.app/api/sociclaw/provision
+SOCICLAW_PROVISION_URL=https://sociclaw.com/api/sociclaw/provision
 SOCICLAW_INTERNAL_TOKEN=your_internal_token  # optional
-SOCICLAW_PROVISION_UPSTREAM_URL=https://<your-image-api-domain>/api/app-router?action=openclaw-provision
+SOCICLAW_PROVISION_UPSTREAM_URL=https://sociclaw.com/api/app-router?action=openclaw-provision
 
 # Trello (optional)
 TRELLO_API_KEY=your_trello_key
@@ -119,7 +119,7 @@ To keep `OPENCLAW_PROVISION_SECRET` server-side, deploy a small proxy:
 Provision and generate an image locally:
 
 ```powershell
-$env:SOCICLAW_PROVISION_URL="https://<your-app>.vercel.app/api/sociclaw/provision"
+$env:SOCICLAW_PROVISION_URL="https://sociclaw.com/api/sociclaw/provision"
 $env:SOCICLAW_INTERNAL_TOKEN="..."
 
 .\.venv\Scripts\python.exe -m sociclaw.scripts.cli provision-image-gateway --provider telegram --provider-user-id 123

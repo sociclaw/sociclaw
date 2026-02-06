@@ -8,7 +8,7 @@ If your OpenClaw agent can read URLs, paste this:
 
 ```text
 Read this page and follow the onboarding steps:
-https://<your-domain>/skill.md
+https://sociclaw.com/skill.md
 ```
 
 ## Install
@@ -22,7 +22,7 @@ Common locations:
 Example:
 
 ```bash
-git clone https://github.com/<your-org-or-user>/sociclaw ~/.openclaw/skills/sociclaw
+git clone https://github.com/sociclaw/sociclaw.git ~/.openclaw/skills/sociclaw
 cd ~/.openclaw/skills/sociclaw
 ```
 
@@ -35,16 +35,16 @@ Create a `.env` at the repo root:
 XAI_API_KEY=your_x_api_key
 
 # Recommended: provision users via your gateway (Vercel)
-SOCICLAW_PROVISION_URL=https://<your-app>.vercel.app/api/sociclaw/provision
+SOCICLAW_PROVISION_URL=https://sociclaw.com/api/sociclaw/provision
 SOCICLAW_INTERNAL_TOKEN=your_internal_token  # optional
-SOCICLAW_PROVISION_UPSTREAM_URL=https://<your-image-api-domain>/api/app-router?action=openclaw-provision
+SOCICLAW_PROVISION_UPSTREAM_URL=https://sociclaw.com/api/app-router?action=openclaw-provision
 
 # Optional: single-account images (no provisioning)
 SOCICLAW_IMAGE_API_KEY=your_sociclaw_image_api_key
 SOCICLAW_IMAGE_MODEL=nano-banana
 
 # SociClaw image API base
-SOCICLAW_IMAGE_API_BASE_URL=https://<your-image-api-domain>
+SOCICLAW_IMAGE_API_BASE_URL=https://sociclaw.com
 
 # Trello (optional)
 TRELLO_API_KEY=your_trello_key
@@ -68,8 +68,8 @@ You can also inject env + config via `openclaw.json`:
     "entries": {
       "sociclaw": {
         "env": {
-          "SOCICLAW_IMAGE_API_BASE_URL": "https://<your-image-api-domain>",
-          "SOCICLAW_PROVISION_URL": "https://<your-app>.vercel.app/api/sociclaw/provision"
+          "SOCICLAW_IMAGE_API_BASE_URL": "https://sociclaw.com",
+          "SOCICLAW_PROVISION_URL": "https://sociclaw.com/api/sociclaw/provision"
         },
         "config": {
           "userNiche": "crypto",

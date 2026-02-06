@@ -73,8 +73,8 @@ SociClaw is an OpenClaw skill that automates trend research, quarterly planning,
 - `XAI_API_KEY`
 - `SOCICLAW_IMAGE_API_KEY` (recommended single-account key)
 - `SOCICLAW_IMAGE_MODEL` (default: `nano-banana`)
-- `SOCICLAW_IMAGE_GENERATE_URL` (default: `https://<image-api-domain>/api/v1?path=generate`)
-- `SOCICLAW_IMAGE_JOBS_URL` (default: `https://<image-api-domain>/api/v1/jobs/`)
+- `SOCICLAW_IMAGE_GENERATE_URL` (default: `https://sociclaw.com/api/v1?path=generate`)
+- `SOCICLAW_IMAGE_JOBS_URL` (default: `https://sociclaw.com/api/v1/jobs/`)
 - `SOCICLAW_IMAGE_API_BASE_URL` (used by topup SDK)
 - `SOCICLAW_PROVISION_URL` (recommended; your backend gateway)
 - `SOCICLAW_PROVISION_UPSTREAM_URL` (optional; upstream provisioning endpoint override)
