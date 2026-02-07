@@ -127,12 +127,26 @@ def cmd_whoami(args: argparse.Namespace) -> int:
 
 def cmd_generate_image(args: argparse.Namespace) -> int:
     provider, provider_user_id = _validated_provider_fields(args.provider, str(args.provider_user_id))
+    runtime_store = RuntimeConfigStore(Path(args.config_path) if args.config_path else None)
+    runtime = runtime_store.load()
     store = StateStore(Path(args.state_path) if args.state_path else None)
     u = store.get_user(provider=provider, provider_user_id=provider_user_id)
     if not u or not u.image_api_key:
         raise SystemExit(
             "Missing provisioned user API key. Run: provision-image "
             f"--provider {args.provider} --provider-user-id {args.provider_user_id}"
+        )
+
+    image_url = args.image_url
+    if not image_url:
+        same_user = runtime.provider == provider and str(runtime.provider_user_id or "") == str(provider_user_id)
+        if same_user and runtime.brand_logo_url:
+            image_url = runtime.brand_logo_url
+
+    if "nano-banana" in (args.model or "").lower() and not image_url and not args.dry_run:
+        raise SystemExit(
+            "Model nano-banana requires an input image. "
+            "Set --image-url or configure --brand-logo-url in setup-wizard."
         )
 
     if args.dry_run:
@@ -144,6 +158,7 @@ def cmd_generate_image(args: argparse.Namespace) -> int:
                     "provider_user_id": provider_user_id,
                     "has_api_key": True,
                     "model": args.model,
+                    "has_image_url": bool(image_url),
                     "prompt_preview": args.prompt[:120],
                 },
                 indent=2,
@@ -155,6 +170,7 @@ def cmd_generate_image(args: argparse.Namespace) -> int:
     gen = ImageGenerator(
         api_key=u.image_api_key,
         model=args.model,
+        image_url=image_url,
         output_dir=out_dir,
         # Provider manages billing/credits on its side; we do not enforce PaymentHandler here.
         payment_handler=None,
@@ -254,6 +270,12 @@ def cmd_setup_wizard(args: argparse.Namespace) -> int:
             args.content_language,
             "Content language (e.g. en, pt-BR)",
             current.content_language or "en",
+            non_interactive=non_interactive,
+        ),
+        brand_logo_url=_prompt_or_value(
+            args.brand_logo_url,
+            "Brand/logo image URL (recommended for nano-banana)",
+            current.brand_logo_url,
             non_interactive=non_interactive,
         ),
         has_brand_document=_prompt_bool_or_value(
@@ -814,9 +836,16 @@ def cmd_e2e_staging(args: argparse.Namespace) -> int:
         image_result = None
         if has_user_key:
             try:
+                image_url = runtime.brand_logo_url if runtime.provider == provider and str(runtime.provider_user_id or "") == str(provider_user_id) else None
+                if "nano-banana" in (args.image_model or "").lower() and not image_url:
+                    raise RuntimeError(
+                        "Model nano-banana requires an input image. "
+                        "Run setup-wizard with --brand-logo-url or test with another model."
+                    )
                 image_gen = ImageGenerator(
                     api_key=user.image_api_key,
                     model=args.image_model,
+                    image_url=image_url,
                     payment_handler=None,
                 )
                 image = image_gen.generate_image(args.image_prompt, user_address=f"{provider}:{provider_user_id}")
@@ -1110,6 +1139,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_img.add_argument("--output-dir", default=None)
     p_img.add_argument("--state-path", default=None)
+    p_img.add_argument("--config-path", default=None, help="Optional runtime config path")
+    p_img.add_argument("--image-url", default=None, help="Optional input image URL (required for img2img models)")
     p_img.add_argument("--dry-run", action="store_true", help="Validate preconditions without calling image API")
     p_img.set_defaults(func=cmd_generate_image)
 
@@ -1139,6 +1170,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_setup.add_argument("--user-niche", default=None)
     p_setup.add_argument("--posting-frequency", default=None)
     p_setup.add_argument("--content-language", default=None)
+    p_setup.add_argument("--brand-logo-url", default=None)
     p_setup.add_argument("--has-brand-document", action="store_true", default=None)
     p_setup.add_argument("--brand-document-path", default=None)
     p_setup.add_argument("--use-trello", action="store_true", default=None)

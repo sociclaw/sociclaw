@@ -12,6 +12,7 @@ def test_runtime_config_store_roundtrip(tmp_path):
         provider_user_id="123",
         user_niche="crypto",
         posting_frequency="2/day",
+        brand_logo_url="https://cdn.example.com/logo.png",
         use_trello=True,
         use_notion=False,
         timezone="UTC",
@@ -22,4 +23,5 @@ def test_runtime_config_store_roundtrip(tmp_path):
     assert loaded.provider == "telegram"
     assert loaded.provider_user_id == "123"
     assert loaded.user_niche == "crypto"
+    assert loaded.brand_logo_url == "https://cdn.example.com/logo.png"
     assert loaded.use_trello is True

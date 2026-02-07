@@ -19,6 +19,8 @@ def test_cli_setup_wizard_non_interactive(tmp_path, capsys):
             "crypto",
             "--posting-frequency",
             "2/day",
+            "--brand-logo-url",
+            "https://cdn.example.com/logo.png",
             "--use-trello",
             "--timezone",
             "UTC",
@@ -33,3 +35,4 @@ def test_cli_setup_wizard_non_interactive(tmp_path, capsys):
     assert payload["config"]["provider_user_id"] == "123"
     assert payload["config"]["use_trello"] is True
     assert payload["config"]["use_notion"] is False
+    assert payload["config"]["brand_logo_url"] == "https://cdn.example.com/logo.png"

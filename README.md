@@ -48,7 +48,7 @@ OpenClaw injects per-skill env/config from `openclaw.json`. Example:
     "entries": {
       "sociclaw": {
         "env": {
-          "SOCICLAW_IMAGE_API_BASE_URL": "https://api.sociclaw.com",
+          "SOCICLAW_IMAGE_API_BASE_URL": "https://creathoon.com",
           "SOCICLAW_PROVISION_URL": "https://api.sociclaw.com/api/sociclaw/provision"
         },
         "config": {
@@ -59,6 +59,12 @@ OpenClaw injects per-skill env/config from `openclaw.json`. Example:
     }
   }
 }
+```
+
+For `nano-banana` (img2img), set a logo/image URL during setup so image generation works without extra prompts:
+
+```bash
+python -m sociclaw.scripts.cli setup-wizard --brand-logo-url "https://yourcdn.com/logo.png"
 ```
 
 ## Quick Start (Python)
@@ -93,7 +99,7 @@ SOCICLAW_IMAGE_API_KEY=your_sociclaw_image_api_key
 SOCICLAW_IMAGE_MODEL=nano-banana
 
 # SociClaw image API base (topup + image generation)
-SOCICLAW_IMAGE_API_BASE_URL=https://api.sociclaw.com
+SOCICLAW_IMAGE_API_BASE_URL=https://creathoon.com
 
 # Recommended: provision users via your gateway (Vercel)
 SOCICLAW_PROVISION_URL=https://api.sociclaw.com/api/sociclaw/provision
