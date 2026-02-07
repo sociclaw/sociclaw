@@ -11,6 +11,7 @@ This module provides functionality to:
 import hashlib
 import logging
 import os
+import re
 import time
 from datetime import datetime, timedelta
 from typing import List, Optional
@@ -43,6 +44,10 @@ class TrelloSync:
         "Concluido",
         "Concluído",
     }
+    QUARTER_LIST_PATTERN = re.compile(r"^Q[1-4]\s+\d{4}\s+-\s+[A-Za-z]+\s*$")
+    MONTH_YEAR_LIST_PATTERN = re.compile(
+        r"^(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\s*$"
+    )
 
     def __init__(
         self,
@@ -187,6 +192,8 @@ class TrelloSync:
     def _ensure_lists(self) -> None:
         existing_open_lists = list(self.board.list_lists("open"))
         self._archive_default_bootstrap_lists(existing_open_lists)
+        active_month_names = self._active_month_list_names()
+        self._archive_stale_content_lists(existing_open_lists, active_month_names)
 
         required_names = self._required_list_names()
         existing_lists = {lst.name: lst for lst in self.board.list_lists("open")}
@@ -194,6 +201,7 @@ class TrelloSync:
             if name not in existing_lists:
                 self.board.add_list(name)
                 self._throttle()
+                existing_lists = {lst.name: lst for lst in self.board.list_lists("open")}
         self._reorder_required_lists_to_front(required_names)
 
     def _required_list_names(self, *, reference_date: Optional[datetime] = None) -> List[str]:
@@ -205,7 +213,7 @@ class TrelloSync:
         the user is already in February.
         """
         month_lists = self._active_month_list_names(reference_date=reference_date)
-        return ["Backlog", *month_lists, "Review", "Scheduled", "Published"]
+        return [*month_lists, "Backlog", "Review", "Scheduled", "Published"]
 
     def _resolve_target_list_name(self, post: GeneratedPost, *, requested_list_name: Optional[str]) -> str:
         if requested_list_name and requested_list_name.strip():
@@ -250,17 +258,37 @@ class TrelloSync:
             except Exception:
                 logger.warning("Could not archive default Trello list: %s", name)
 
+    def _archive_stale_content_lists(self, open_lists: List, active_month_names: List[str]) -> None:
+        """
+        Archive legacy/stale content columns that are outside the active planning
+        window. This removes old quarter-based lists and outdated month lists.
+        """
+        active_set = set(active_month_names)
+        for lst in open_lists:
+            name = (getattr(lst, "name", "") or "").strip()
+            if not name:
+                continue
+            if name in active_set:
+                continue
+            if not (self.QUARTER_LIST_PATTERN.match(name) or self.MONTH_YEAR_LIST_PATTERN.match(name)):
+                continue
+            try:
+                lst.close()
+                self._throttle()
+            except Exception:
+                logger.warning("Could not archive stale Trello content list: %s", name)
+
     def _reorder_required_lists_to_front(self, required_names: List[str]) -> None:
         """
         Keep SociClaw columns at the beginning of the board, in predictable order.
         """
         open_lists = {lst.name: lst for lst in self.board.list_lists("open")}
-        for name in reversed(required_names):
+        for idx, name in enumerate(required_names, start=1):
             lst = open_lists.get(name)
             if not lst:
                 continue
             try:
-                lst.set_pos("top")
+                lst.set_pos(idx * 1000)
                 self._throttle()
             except Exception:
                 logger.warning("Could not reorder Trello list: %s", name)

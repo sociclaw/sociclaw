@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import MagicMock
 
 from sociclaw.scripts.brand_profile import BrandProfile
@@ -68,6 +68,26 @@ def test_quarterly_scheduler():
     assert len(plans) == 14
     assert len(full) == 180
     assert all(isinstance(plan, PostPlan) for plan in plans)
+
+
+def test_quarterly_scheduler_clamps_past_start_date_to_today(monkeypatch):
+    monkeypatch.delenv("SOCICLAW_ALLOW_PAST_PLAN_START", raising=False)
+    scheduler = QuarterlyScheduler()
+    trend_data = MagicMock()
+    trend_data.peak_hours = [13, 17, 21]
+    trend_data.topics = ["Bitcoin", "Ethereum", "DeFi"]
+    trend_data.hashtags = ["Crypto", "Web3", "Blockchain"]
+
+    today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    past = today - timedelta(days=30)
+    plans = scheduler.generate_quarterly_plan(
+        trend_data,
+        start_date=past,
+        days=3,
+        posts_per_day=1,
+    )
+
+    assert plans[0].date.date() == today.date()
 
 
 def test_content_generator():
@@ -191,11 +211,11 @@ def test_trello_sync_required_lists_start_from_current_month(monkeypatch):
 
     names = sync._required_list_names(reference_date=datetime(2026, 2, 6))
 
-    assert names[0] == "Backlog"
+    assert names[0] == "February 2026"
     assert "January 2026" not in names
     assert "February 2026" in names
     assert "March 2026" in names
-    assert names[-3:] == ["Review", "Scheduled", "Published"]
+    assert names[-4:] == ["Backlog", "Review", "Scheduled", "Published"]
 
 
 def test_trello_sync_archives_only_empty_default_lists():
@@ -326,18 +346,51 @@ def test_trello_sync_ensure_lists_keeps_required_columns_at_front():
     sync = TrelloSync(api_key="key", token="token", board_id="board", client=client, request_delay_seconds=0)
     sync.board = board
     sync._required_list_names = MagicMock(
-        return_value=["Backlog", "February 2026", "Review", "Scheduled", "Published"]
+        return_value=["February 2026", "Backlog", "Review", "Scheduled", "Published"]
     )
+    sync._active_month_list_names = MagicMock(return_value=["February 2026"])
 
     sync._ensure_lists()
 
     board.add_list.assert_not_called()
-    backlog.set_pos.assert_called_once_with("top")
-    feb.set_pos.assert_called_once_with("top")
-    review.set_pos.assert_called_once_with("top")
-    scheduled.set_pos.assert_called_once_with("top")
-    published.set_pos.assert_called_once_with("top")
+    feb.set_pos.assert_called_once_with(1000)
+    backlog.set_pos.assert_called_once_with(2000)
+    review.set_pos.assert_called_once_with(3000)
+    scheduled.set_pos.assert_called_once_with(4000)
+    published.set_pos.assert_called_once_with(5000)
     custom.set_pos.assert_not_called()
+
+
+def test_trello_sync_ensure_lists_archives_stale_quarter_and_month_lists():
+    client = MagicMock()
+    board = MagicMock()
+
+    q4 = MagicMock()
+    q4.name = "Q4 2026 - December"
+    old_month = MagicMock()
+    old_month.name = "January 2026"
+    active_month = MagicMock()
+    active_month.name = "February 2026"
+    backlog = MagicMock()
+    backlog.name = "Backlog"
+
+    for lst in [q4, old_month, active_month, backlog]:
+        lst.list_cards.return_value = []
+
+    board.list_lists.return_value = [q4, old_month, active_month, backlog]
+    client.get_board.return_value = board
+
+    sync = TrelloSync(api_key="key", token="token", board_id="board", client=client, request_delay_seconds=0)
+    sync.board = board
+    sync._required_list_names = MagicMock(return_value=["February 2026", "Backlog", "Review", "Scheduled", "Published"])
+    sync._active_month_list_names = MagicMock(return_value=["February 2026"])
+
+    sync._ensure_lists()
+
+    q4.close.assert_called_once()
+    old_month.close.assert_called_once()
+    active_month.close.assert_not_called()
+    backlog.close.assert_not_called()
 
 
 def test_trello_sync_prefers_details_in_card_description():

@@ -9,6 +9,7 @@ This module provides functionality to:
 """
 
 import logging
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import List, Optional
@@ -100,8 +101,24 @@ class QuarterlyScheduler:
         """
         logger.info("Generating content plan...")
 
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
         if start_date is None:
-            start_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            start_date = today_start
+        else:
+            start_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
+            allow_past_start = os.getenv("SOCICLAW_ALLOW_PAST_PLAN_START", "").strip().lower() in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            }
+            if start_date < today_start and not allow_past_start:
+                logger.info(
+                    "Provided start_date %s is in the past; clamping to today (%s).",
+                    start_date.date(),
+                    today_start.date(),
+                )
+                start_date = today_start
 
         if days is None:
             days = self.STARTER_PLAN_DAYS if starter_mode else self.FULL_PLAN_DAYS
