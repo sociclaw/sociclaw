@@ -97,7 +97,7 @@ SOCICLAW_IMAGE_API_BASE_URL=https://api.sociclaw.com
 
 # Recommended: provision users via your gateway (Vercel)
 SOCICLAW_PROVISION_URL=https://api.sociclaw.com/api/sociclaw/provision
-SOCICLAW_PROVISION_UPSTREAM_URL=https://example-upstream.com/api/app-router?action=openclaw-provision
+SOCICLAW_PROVISION_UPSTREAM_URL=https://creathoon.com/api/openclaw/provision
 
 # Optional server-only hardening (do not distribute to end-user clients)
 # SOCICLAW_INTERNAL_TOKEN=your_internal_token
@@ -180,6 +180,7 @@ Topup flow (txHash):
 `--tx-hash` must be a full Base tx hash (`0x` + 64 hex chars).
 
 Release process checklist: see `RELEASE_CHECKLIST.md`.
+Creathoon integration QA script/checklist: see `CREATHOON_QA_CHECKLIST.md`.
 
 ## Auto-update for running bots
 

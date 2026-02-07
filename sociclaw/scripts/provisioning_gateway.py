@@ -87,7 +87,17 @@ class SociClawProvisioningGatewayClient:
         data = resp.json()
 
         nested = data.get("data") if isinstance(data.get("data"), dict) else {}
-        api_key = data.get("image_api_key") or data.get("api_key") or nested.get("image_api_key") or nested.get("api_key")
+        # Contract order:
+        # 1) data.api_key
+        # 2) api_key
+        # 3) data.image_api_key
+        # 4) image_api_key
+        api_key = (
+            nested.get("api_key")
+            or data.get("api_key")
+            or nested.get("image_api_key")
+            or data.get("image_api_key")
+        )
         if not api_key:
             for container in (data, nested):
                 for k, v in container.items():

@@ -65,6 +65,23 @@ def test_provisioning_parse_nested_data():
     assert res.wallet_address == "0xdef"
 
 
+def test_provisioning_api_key_contract_order_prefers_data_api_key():
+    sess = DummySession(
+        {
+            "api_key": "sk_top",
+            "image_api_key": "sk_top_image",
+            "data": {
+                "api_key": "sk_data",
+                "image_api_key": "sk_data_image",
+            },
+        }
+    )
+    c = ProvisioningClient(openclaw_secret="secret", url="https://api.example.com/provision", session=sess)
+    res = c.provision(provider="telegram", provider_user_id="u1", create_api_key=True)
+
+    assert res.api_key == "sk_data"
+
+
 def test_provisioning_requires_secret():
     try:
         ProvisioningClient(openclaw_secret="  ", url="https://api.example.com/provision")

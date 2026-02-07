@@ -53,3 +53,24 @@ def test_gateway_requires_url():
     else:
         raise AssertionError("expected ValueError")
 
+
+def test_gateway_api_key_contract_order_prefers_data_api_key():
+    sess = DummySession(
+        {
+            "api_key": "sk_top",
+            "image_api_key": "sk_top_image",
+            "data": {
+                "api_key": "sk_data",
+                "image_api_key": "sk_data_image",
+                "wallet_address": "0xabc",
+            },
+        }
+    )
+    c = SociClawProvisioningGatewayClient(
+        url="https://example.com/api/sociclaw/provision",
+        session=sess,
+    )
+    res = c.provision(provider="telegram", provider_user_id=123, create_api_key=True)
+
+    assert res.api_key == "sk_data"
+
