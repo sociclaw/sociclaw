@@ -320,6 +320,59 @@ def test_trello_sync_create_card_falls_back_to_backlog_without_date():
     backlog_list.add_card.assert_called_once()
 
 
+def test_trello_sync_create_card_clamps_past_due_to_current_month(monkeypatch):
+    client = MagicMock()
+    board = MagicMock()
+
+    feb_list = MagicMock()
+    feb_list.name = "February 2026"
+    feb_list.list_cards.return_value = []
+    feb_card = MagicMock()
+    feb_list.add_card.return_value = feb_card
+
+    jan_list = MagicMock()
+    jan_list.name = "January 2026"
+    jan_list.list_cards.return_value = []
+
+    backlog_list = MagicMock()
+    backlog_list.name = "Backlog"
+    backlog_list.list_cards.return_value = []
+
+    board.list_lists.return_value = [feb_list, jan_list, backlog_list]
+    board.get_labels.return_value = []
+    board.add_label.return_value = MagicMock()
+    feb_card.get_checklists.return_value = []
+    feb_card.add_checklist.return_value = MagicMock()
+    client.get_board.return_value = board
+
+    class _FixedDateTime(datetime):
+        @classmethod
+        def utcnow(cls):
+            return cls(2026, 2, 10, 12, 0, 0)
+
+    monkeypatch.setattr("sociclaw.scripts.trello_sync.datetime", _FixedDateTime)
+
+    post = GeneratedPost(
+        text="Past plan post",
+        image_prompt="Prompt",
+        title="Old title",
+        body="Old body",
+        details="Title: Old title\nBody: Old body",
+        hashtags=["SociClaw"],
+        category="tips",
+        date="2026-01-02",
+        time=13,
+    )
+
+    sync = TrelloSync(api_key="key", token="token", board_id="board", client=client, request_delay_seconds=0)
+    sync.setup_board()
+    created = sync.create_card(post)
+
+    assert created == feb_card
+    feb_list.add_card.assert_called_once()
+    jan_list.add_card.assert_not_called()
+
+
 def test_trello_sync_ensure_lists_keeps_required_columns_at_front():
     client = MagicMock()
     board = MagicMock()
@@ -353,12 +406,12 @@ def test_trello_sync_ensure_lists_keeps_required_columns_at_front():
     sync._ensure_lists()
 
     board.add_list.assert_not_called()
-    feb.set_pos.assert_called_once_with(1000)
-    backlog.set_pos.assert_called_once_with(2000)
-    review.set_pos.assert_called_once_with(3000)
-    scheduled.set_pos.assert_called_once_with(4000)
-    published.set_pos.assert_called_once_with(5000)
-    custom.set_pos.assert_not_called()
+    feb.move.assert_called_once_with("top")
+    backlog.move.assert_called_once_with("top")
+    review.move.assert_called_once_with("top")
+    scheduled.move.assert_called_once_with("top")
+    published.move.assert_called_once_with("top")
+    custom.move.assert_not_called()
 
 
 def test_trello_sync_ensure_lists_archives_stale_quarter_and_month_lists():
@@ -427,6 +480,20 @@ def test_trello_sync_prefers_details_in_card_description():
 
     kwargs = list_obj.add_card.call_args.kwargs
     assert "Title: Post title" in kwargs["desc"]
+
+
+def test_trello_sync_checklist_fallback_without_get_checklists():
+    card = MagicMock()
+    del card.get_checklists
+    card.checklists = []
+    checklist = MagicMock()
+    card.add_checklist.return_value = checklist
+
+    sync = TrelloSync(api_key="key", token="token", board_id="board", client=MagicMock(), request_delay_seconds=0)
+    sync._ensure_checklist(card)
+
+    card.add_checklist.assert_called_once_with("Approval")
+    assert checklist.add_checklist_item.call_count == 3
 
 
 def test_trello_sync_idempotent_card_creation(sample_generated_posts):

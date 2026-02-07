@@ -73,6 +73,10 @@ class TrelloSync:
             request_delay_seconds = float(os.getenv("SOCICLAW_TRELLO_DELAY_SECONDS", "0.2"))
         self.request_delay_seconds = max(0.0, float(request_delay_seconds))
         self.plan_window_days = max(1, int(os.getenv("SOCICLAW_TRELLO_PLAN_WINDOW_DAYS", "14")))
+        self.allow_past_month_routing = (
+            os.getenv("SOCICLAW_TRELLO_ALLOW_PAST_MONTH_ROUTING", "").strip().lower()
+            in {"1", "true", "yes", "on"}
+        )
 
         if not client and (not self.api_key or not self.token):
             raise ValueError("TRELLO_API_KEY and TRELLO_TOKEN must be provided")
@@ -221,6 +225,9 @@ class TrelloSync:
 
         due_date = self._build_due_date(post)
         if due_date:
+            today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            if due_date < today_start and not self.allow_past_month_routing:
+                return today_start.strftime("%B %Y")
             return due_date.strftime("%B %Y")
 
         return "Backlog"
@@ -283,12 +290,12 @@ class TrelloSync:
         Keep SociClaw columns at the beginning of the board, in predictable order.
         """
         open_lists = {lst.name: lst for lst in self.board.list_lists("open")}
-        for idx, name in enumerate(required_names, start=1):
+        for name in reversed(required_names):
             lst = open_lists.get(name)
             if not lst:
                 continue
             try:
-                lst.set_pos(idx * 1000)
+                lst.move("top")
                 self._throttle()
             except Exception:
                 logger.warning("Could not reorder Trello list: %s", name)
@@ -324,9 +331,23 @@ class TrelloSync:
 
     def _ensure_checklist(self, card) -> None:
         checklist_name = "Approval"
-        for checklist in card.get_checklists():
-            if checklist.name == checklist_name:
+
+        checklists = []
+        try:
+            if hasattr(card, "get_checklists") and callable(card.get_checklists):
+                checklists = card.get_checklists() or []
+            elif hasattr(card, "checklists"):
+                checklists = getattr(card, "checklists") or []
+        except Exception:
+            checklists = []
+
+        for checklist in checklists:
+            if getattr(checklist, "name", None) == checklist_name:
                 return
+
+        if not hasattr(card, "add_checklist"):
+            logger.warning("Card object does not support add_checklist; skipping checklist creation.")
+            return
 
         checklist = card.add_checklist(checklist_name)
         for item in ["Review copy", "Approve image", "Schedule"]:
