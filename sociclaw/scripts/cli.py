@@ -595,6 +595,32 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_trello_normalize(args: argparse.Namespace) -> int:
+    try:
+        trello = TrelloSync(
+            api_key=args.api_key or os.getenv("TRELLO_API_KEY"),
+            token=args.token or os.getenv("TRELLO_TOKEN"),
+            board_id=args.board_id or os.getenv("TRELLO_BOARD_ID"),
+            request_delay_seconds=float(args.request_delay_seconds),
+        )
+        trello.setup_board()
+        open_lists = [lst.name for lst in trello.board.list_lists("open")]
+        print(
+            json.dumps(
+                {
+                    "ok": True,
+                    "board_id": trello.board_id,
+                    "open_lists": open_lists,
+                },
+                indent=2,
+            )
+        )
+        return 0
+    except Exception as exc:
+        print(json.dumps({"ok": False, "error": str(exc)}, indent=2))
+        return 1
+
+
 def cmd_smoke(args: argparse.Namespace) -> int:
     runtime_store = RuntimeConfigStore(Path(args.config_path) if args.config_path else None)
     runtime = runtime_store.load()
@@ -1174,6 +1200,16 @@ def build_parser() -> argparse.ArgumentParser:
     p_doctor.add_argument("--session-db-path", default=None, help="Optional session DB path")
     p_doctor.add_argument("--brand-profile-path", default=None, help="Optional brand profile path")
     p_doctor.set_defaults(func=cmd_doctor)
+
+    p_trello_norm = sub.add_parser(
+        "trello-normalize",
+        help="Normalize Trello board lists (archive stale lists and move active lists to the left)",
+    )
+    p_trello_norm.add_argument("--api-key", default=None)
+    p_trello_norm.add_argument("--token", default=None)
+    p_trello_norm.add_argument("--board-id", default=None)
+    p_trello_norm.add_argument("--request-delay-seconds", default=0.0, type=float)
+    p_trello_norm.set_defaults(func=cmd_trello_normalize)
 
     p_smoke = sub.add_parser("smoke", help="Quick local smoke test (env + state + content generation)")
     p_smoke.add_argument("--provider", default=None)

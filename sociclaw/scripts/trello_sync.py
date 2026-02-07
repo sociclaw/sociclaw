@@ -42,7 +42,8 @@ class TrelloSync:
         "A Fazer",
         "Fazendo",
         "Concluido",
-        "Concluído",
+        "Concluido (PT)",
+        "Concluido PT",
     }
     QUARTER_LIST_PATTERN = re.compile(r"^Q[1-4]\s+\d{4}\s+-\s+[A-Za-z]+\s*$")
     MONTH_YEAR_LIST_PATTERN = re.compile(

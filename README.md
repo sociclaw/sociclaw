@@ -155,6 +155,7 @@ Preflight and Brand Brain:
 .\.venv\Scripts\python.exe -m sociclaw.scripts.cli smoke
 .\.venv\Scripts\python.exe -m sociclaw.scripts.cli e2e-staging --config-path .sociclaw/runtime_config.json --state-path .tmp/sociclaw_state.json
 .\.venv\Scripts\python.exe -m sociclaw.scripts.cli release-audit --strict
+.\.venv\Scripts\python.exe -m sociclaw.scripts.cli trello-normalize --board-id <trello_board_id>
 .\.venv\Scripts\python.exe -m sociclaw.scripts.cli check-update
 .\.venv\Scripts\python.exe -m sociclaw.scripts.cli self-update --yes
 ```
