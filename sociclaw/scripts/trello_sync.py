@@ -12,7 +12,7 @@ import hashlib
 import logging
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 
 try:
@@ -33,6 +33,16 @@ class TrelloSync:
     """
 
     BOARD_NAME = "SociClaw Content Calendar"
+    BASE_WORKFLOW_LISTS = ["Backlog", "Review", "Scheduled", "Published"]
+    DEFAULT_BOOTSTRAP_LISTS = {
+        "To Do",
+        "Doing",
+        "Done",
+        "A Fazer",
+        "Fazendo",
+        "Concluido",
+        "Concluído",
+    }
 
     def __init__(
         self,
@@ -57,6 +67,7 @@ class TrelloSync:
         if request_delay_seconds is None:
             request_delay_seconds = float(os.getenv("SOCICLAW_TRELLO_DELAY_SECONDS", "0.2"))
         self.request_delay_seconds = max(0.0, float(request_delay_seconds))
+        self.plan_window_days = max(1, int(os.getenv("SOCICLAW_TRELLO_PLAN_WINDOW_DAYS", "14")))
 
         if not client and (not self.api_key or not self.token):
             raise ValueError("TRELLO_API_KEY and TRELLO_TOKEN must be provided")
@@ -81,13 +92,14 @@ class TrelloSync:
 
         self._ensure_lists()
 
-    def create_card(self, post: GeneratedPost, list_name: str = "Backlog"):
+    def create_card(self, post: GeneratedPost, list_name: Optional[str] = None):
         """
         Create a Trello card for a generated post.
 
         Args:
             post: GeneratedPost instance
-            list_name: Target list name
+            list_name: Target list name. If omitted, SociClaw routes by post month
+                      when available, otherwise falls back to Backlog.
 
         Returns:
             Created card object
@@ -95,9 +107,16 @@ class TrelloSync:
         if not self.board:
             self.setup_board()
 
-        target_list = self._get_list_by_name(list_name)
+        resolved_list_name = self._resolve_target_list_name(post, requested_list_name=list_name)
+        target_list = self._get_list_by_name(resolved_list_name)
+        if not target_list and resolved_list_name != "Backlog":
+            self.board.add_list(resolved_list_name)
+            self._throttle()
+            target_list = self._get_list_by_name(resolved_list_name)
         if not target_list:
-            raise ValueError(f"List not found: {list_name}")
+            target_list = self._get_list_by_name("Backlog")
+        if not target_list:
+            raise ValueError("List not found: Backlog")
 
         title = self._summarize_title(post.text)
         post_id = self._build_post_identity(post)
@@ -106,7 +125,14 @@ class TrelloSync:
             return existing
 
         due_date = self._build_due_date(post)
-        description = f"{post.text}\n\n[SociClaw-ID:{post_id}]"
+        if post.details and post.details.strip():
+            full_content = post.details.strip()
+        else:
+            content_parts = [part.strip() for part in [post.title, post.body] if part and part.strip()]
+            if post.text and post.text.strip():
+                content_parts.append(f"Post:\n{post.text.strip()}")
+            full_content = "\n\n".join(content_parts).strip() or "Post content unavailable."
+        description = f"{full_content}\n\n[SociClaw-ID:{post_id}]"
         card = target_list.add_card(name=title, desc=description, due=due_date)
         self._throttle()
 
@@ -159,25 +185,85 @@ class TrelloSync:
         return self.client.add_board(name)
 
     def _ensure_lists(self) -> None:
+        existing_open_lists = list(self.board.list_lists("open"))
+        self._archive_default_bootstrap_lists(existing_open_lists)
+
+        required_names = self._required_list_names()
         existing_lists = {lst.name: lst for lst in self.board.list_lists("open")}
-        for name in self._required_list_names():
+        for name in required_names:
             if name not in existing_lists:
                 self.board.add_list(name)
+                self._throttle()
+        self._reorder_required_lists_to_front(required_names)
 
-    def _required_list_names(self) -> List[str]:
-        months = {
-            "Q1 2026": ["January", "February", "March"],
-            "Q2 2026": ["April", "May", "June"],
-            "Q3 2026": ["July", "August", "September"],
-            "Q4 2026": ["October", "November", "December"],
-        }
+    def _required_list_names(self, *, reference_date: Optional[datetime] = None) -> List[str]:
+        """
+        Build a minimal Trello column set.
 
-        list_names = ["Backlog"]
-        for quarter, quarter_months in months.items():
-            for month in quarter_months:
-                list_names.append(f"{quarter} - {month}")
-        list_names.extend(["Review", "Scheduled", "Published"])
-        return list_names
+        We only create month columns inside the active planning window, starting
+        from the user's current date, to avoid stale columns such as January when
+        the user is already in February.
+        """
+        month_lists = self._active_month_list_names(reference_date=reference_date)
+        return ["Backlog", *month_lists, "Review", "Scheduled", "Published"]
+
+    def _resolve_target_list_name(self, post: GeneratedPost, *, requested_list_name: Optional[str]) -> str:
+        if requested_list_name and requested_list_name.strip():
+            return requested_list_name.strip()
+
+        due_date = self._build_due_date(post)
+        if due_date:
+            return due_date.strftime("%B %Y")
+
+        return "Backlog"
+
+    def _active_month_list_names(self, *, reference_date: Optional[datetime] = None) -> List[str]:
+        if reference_date is None:
+            reference_date = datetime.utcnow()
+
+        month_keys = set()
+        for offset in range(self.plan_window_days):
+            day = reference_date + timedelta(days=offset)
+            month_keys.add((day.year, day.month))
+
+        ordered = sorted(month_keys)
+        return [datetime(year=y, month=m, day=1).strftime("%B %Y") for y, m in ordered]
+
+    def _archive_default_bootstrap_lists(self, open_lists: List) -> None:
+        """
+        Archive empty default Trello lists so SociClaw columns are not pushed to
+        the far right behind generic starter columns.
+        """
+        for lst in open_lists:
+            name = (getattr(lst, "name", "") or "").strip()
+            if name not in self.DEFAULT_BOOTSTRAP_LISTS:
+                continue
+            try:
+                cards = lst.list_cards()
+            except Exception:
+                cards = []
+            if cards:
+                continue
+            try:
+                lst.close()
+                self._throttle()
+            except Exception:
+                logger.warning("Could not archive default Trello list: %s", name)
+
+    def _reorder_required_lists_to_front(self, required_names: List[str]) -> None:
+        """
+        Keep SociClaw columns at the beginning of the board, in predictable order.
+        """
+        open_lists = {lst.name: lst for lst in self.board.list_lists("open")}
+        for name in reversed(required_names):
+            lst = open_lists.get(name)
+            if not lst:
+                continue
+            try:
+                lst.set_pos("top")
+                self._throttle()
+            except Exception:
+                logger.warning("Could not reorder Trello list: %s", name)
 
     def _get_list_by_name(self, name: str):
         lists = self.board.list_lists("open")

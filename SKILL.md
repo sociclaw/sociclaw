@@ -10,19 +10,25 @@ metadata: {"version":"0.1.0","tags":["social-media","x","twitter","automation","
 
 SociClaw is an AI agent dedicated to managing social media accounts autonomously. Drafts are synced to Trello/Notion, and images are generated via the SociClaw image API.
 
+## Response Language
+
+- Always reply in the same language as the user's latest message.
+- If the user switches language, switch automatically in the next response.
+- Keep command names and code snippets unchanged.
+
 ## Commands
 
 ### `/sociclaw`
 Welcome message + quick help (recommended). If the user is not configured yet, start onboarding.
 
 ### `/sociclaw setup`
-Configure niche, posting frequency, and integrations.
+Configure niche, posting frequency, content language, brand-document info, and integrations.
 
 ### `/sociclaw briefing`
-Capture brand context (tone, audience, keywords, forbidden terms) to improve content quality.
+Capture brand context (tone, audience, keywords, forbidden terms, language, brand doc path) to improve content quality.
 
 ### `/sociclaw plan [quarter]`
-Generate a quarterly content plan (90 days x 2 posts/day = 180 ideas).
+Generate a starter plan by default (14 days x 1 post/day). Use full quarter mode when requested (90 days x 2 posts/day).
 
 ### `/sociclaw generate`
 Generate today's posts (text + image prompt + image) and attach results to Trello/Notion.

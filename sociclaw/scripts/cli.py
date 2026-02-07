@@ -166,17 +166,33 @@ def cmd_generate_image(args: argparse.Namespace) -> int:
     return 0
 
 
-def _prompt_or_value(value: Optional[str], prompt_text: str, default: str = "") -> str:
+def _prompt_or_value(
+    value: Optional[str],
+    prompt_text: str,
+    default: str = "",
+    *,
+    non_interactive: bool = False,
+) -> str:
     if value is not None:
         return str(value).strip()
+    if non_interactive:
+        return default
     raw = input(f"{prompt_text} [{default}]: ").strip()
     return raw or default
 
 
-def _prompt_list_or_value(value: Optional[str], prompt_text: str, default_items: list[str]) -> list[str]:
+def _prompt_list_or_value(
+    value: Optional[str],
+    prompt_text: str,
+    default_items: list[str],
+    *,
+    non_interactive: bool = False,
+) -> list[str]:
     if value is not None:
         raw = value.strip()
     else:
+        if non_interactive:
+            return default_items
         default_txt = ", ".join(default_items)
         raw = input(f"{prompt_text} (comma-separated) [{default_txt}]: ").strip()
         if not raw:
@@ -203,8 +219,18 @@ def cmd_setup_wizard(args: argparse.Namespace) -> int:
 
     non_interactive = bool(args.non_interactive)
 
-    provider = _prompt_or_value(args.provider, "Provider (telegram, etc)", current.provider or "telegram")
-    provider_user_id = _prompt_or_value(args.provider_user_id, "Provider user ID", current.provider_user_id)
+    provider = _prompt_or_value(
+        args.provider,
+        "Provider (telegram, etc)",
+        current.provider or "telegram",
+        non_interactive=non_interactive,
+    )
+    provider_user_id = _prompt_or_value(
+        args.provider_user_id,
+        "Provider user ID",
+        current.provider_user_id,
+        non_interactive=non_interactive,
+    )
     if not provider_user_id:
         raise SystemExit("provider_user_id is required")
     provider, provider_user_id = _validated_provider_fields(provider, provider_user_id)
@@ -212,11 +238,35 @@ def cmd_setup_wizard(args: argparse.Namespace) -> int:
     cfg = RuntimeConfig(
         provider=provider,
         provider_user_id=provider_user_id,
-        user_niche=_prompt_or_value(args.user_niche, "User niche", current.user_niche),
+        user_niche=_prompt_or_value(
+            args.user_niche,
+            "User niche",
+            current.user_niche,
+            non_interactive=non_interactive,
+        ),
         posting_frequency=_prompt_or_value(
             args.posting_frequency,
             "Posting frequency (e.g. 2/day)",
             current.posting_frequency or "2/day",
+            non_interactive=non_interactive,
+        ),
+        content_language=_prompt_or_value(
+            args.content_language,
+            "Content language (e.g. en, pt-BR)",
+            current.content_language or "en",
+            non_interactive=non_interactive,
+        ),
+        has_brand_document=_prompt_bool_or_value(
+            args.has_brand_document,
+            "Do you already have a full brand document",
+            current.has_brand_document,
+            non_interactive=non_interactive,
+        ),
+        brand_document_path=_prompt_or_value(
+            args.brand_document_path,
+            "Brand document path or URL (optional)",
+            current.brand_document_path,
+            non_interactive=non_interactive,
         ),
         use_trello=_prompt_bool_or_value(
             args.use_trello,
@@ -230,7 +280,12 @@ def cmd_setup_wizard(args: argparse.Namespace) -> int:
             current.use_notion,
             non_interactive=non_interactive,
         ),
-        timezone=_prompt_or_value(args.timezone, "Timezone", current.timezone or "UTC"),
+        timezone=_prompt_or_value(
+            args.timezone,
+            "Timezone",
+            current.timezone or "UTC",
+            non_interactive=non_interactive,
+        ),
     )
 
     saved_path = store.save(cfg)
@@ -241,16 +296,60 @@ def cmd_setup_wizard(args: argparse.Namespace) -> int:
 def cmd_briefing(args: argparse.Namespace) -> int:
     profile_path = Path(args.path) if args.path else None
     current = load_brand_profile(profile_path)
+    non_interactive = bool(args.non_interactive)
 
     updated = BrandProfile(
-        name=_prompt_or_value(args.name, "Project name", current.name),
-        slogan=_prompt_or_value(args.slogan, "Slogan", current.slogan),
-        voice_tone=_prompt_or_value(args.voice_tone, "Voice/Tone", current.voice_tone),
-        target_audience=_prompt_or_value(args.target_audience, "Target audience", current.target_audience),
-        value_proposition=_prompt_or_value(args.value_proposition, "Value proposition", current.value_proposition),
-        key_themes=_prompt_list_or_value(args.key_themes, "Key themes", current.key_themes),
-        do_not_say=_prompt_list_or_value(args.do_not_say, "Do Not Say terms", current.do_not_say),
-        keywords=_prompt_list_or_value(args.keywords, "Required keywords", current.keywords),
+        name=_prompt_or_value(args.name, "Project name", current.name, non_interactive=non_interactive),
+        slogan=_prompt_or_value(args.slogan, "Slogan", current.slogan, non_interactive=non_interactive),
+        voice_tone=_prompt_or_value(args.voice_tone, "Voice/Tone", current.voice_tone, non_interactive=non_interactive),
+        target_audience=_prompt_or_value(
+            args.target_audience,
+            "Target audience",
+            current.target_audience,
+            non_interactive=non_interactive,
+        ),
+        value_proposition=_prompt_or_value(
+            args.value_proposition,
+            "Value proposition",
+            current.value_proposition,
+            non_interactive=non_interactive,
+        ),
+        key_themes=_prompt_list_or_value(
+            args.key_themes,
+            "Key themes",
+            current.key_themes,
+            non_interactive=non_interactive,
+        ),
+        do_not_say=_prompt_list_or_value(
+            args.do_not_say,
+            "Do Not Say terms",
+            current.do_not_say,
+            non_interactive=non_interactive,
+        ),
+        keywords=_prompt_list_or_value(
+            args.keywords,
+            "Required keywords",
+            current.keywords,
+            non_interactive=non_interactive,
+        ),
+        content_language=_prompt_or_value(
+            args.content_language,
+            "Content language for generated posts (e.g. en, pt-BR)",
+            current.content_language or "en",
+            non_interactive=non_interactive,
+        ),
+        has_brand_document=_prompt_bool_or_value(
+            args.has_brand_document,
+            "Do you have a complete brand document",
+            current.has_brand_document,
+            non_interactive=non_interactive,
+        ),
+        brand_document_path=_prompt_or_value(
+            args.brand_document_path,
+            "Brand document path or URL (optional)",
+            current.brand_document_path,
+            non_interactive=non_interactive,
+        ),
     )
 
     out_path = save_brand_profile(updated, profile_path)
@@ -1001,6 +1100,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_brief.add_argument("--key-themes", default=None, help="Comma-separated list")
     p_brief.add_argument("--do-not-say", default=None, help="Comma-separated list")
     p_brief.add_argument("--keywords", default=None, help="Comma-separated list")
+    p_brief.add_argument("--content-language", default=None, help="Content language (e.g. en, pt-BR)")
+    p_brief.add_argument("--has-brand-document", action="store_true", default=None)
+    p_brief.add_argument("--brand-document-path", default=None)
+    p_brief.add_argument("--non-interactive", action="store_true", help="Do not prompt for missing values")
     p_brief.set_defaults(func=cmd_briefing)
 
     p_setup = sub.add_parser("setup-wizard", help="Interactive local setup wizard (provider/user defaults)")
@@ -1009,6 +1112,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_setup.add_argument("--provider-user-id", default=None)
     p_setup.add_argument("--user-niche", default=None)
     p_setup.add_argument("--posting-frequency", default=None)
+    p_setup.add_argument("--content-language", default=None)
+    p_setup.add_argument("--has-brand-document", action="store_true", default=None)
+    p_setup.add_argument("--brand-document-path", default=None)
     p_setup.add_argument("--use-trello", action="store_true", default=None)
     p_setup.add_argument("--use-notion", action="store_true", default=None)
     p_setup.add_argument("--timezone", default=None)

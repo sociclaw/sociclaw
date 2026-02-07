@@ -18,11 +18,14 @@ class BrandProfile:
     name: str = ""
     slogan: str = ""
     voice_tone: str = "Professional"
+    content_language: str = "en"
     target_audience: str = ""
     value_proposition: str = ""
     key_themes: List[str] = field(default_factory=list)
     do_not_say: List[str] = field(default_factory=list)
     keywords: List[str] = field(default_factory=list)
+    has_brand_document: bool = False
+    brand_document_path: str = ""
 
 
 def default_brand_profile_path() -> Path:
@@ -59,6 +62,8 @@ def load_brand_profile(path: Optional[Path] = None) -> BrandProfile:
                 profile.slogan = value
             elif label in {"voice/tone", "voice"}:
                 profile.voice_tone = value or profile.voice_tone
+            elif label == "content language":
+                profile.content_language = value or profile.content_language
             elif label == "target audience":
                 profile.target_audience = value
             elif label == "value proposition":
@@ -72,6 +77,10 @@ def load_brand_profile(path: Optional[Path] = None) -> BrandProfile:
             elif label == "keywords":
                 profile.keywords = _parse_inline_list(value)
                 current_list_key = "keywords"
+            elif label == "has brand document":
+                profile.has_brand_document = value.lower() in {"yes", "true", "1", "y"}
+            elif label == "brand document path":
+                profile.brand_document_path = value
             continue
 
         item = re.match(r"^- (.+)$", line)
@@ -95,6 +104,7 @@ def save_brand_profile(profile: BrandProfile, path: Optional[Path] = None) -> Pa
         f"- **Name:** {profile.name}",
         f"- **Slogan:** {profile.slogan}",
         f"- **Voice/Tone:** {profile.voice_tone}",
+        f"- **Content Language:** {profile.content_language}",
         "",
         "## Strategic Context",
         f"- **Target Audience:** {profile.target_audience}",
@@ -104,6 +114,8 @@ def save_brand_profile(profile: BrandProfile, path: Optional[Path] = None) -> Pa
         "## Constraints",
         f"- **Do Not Say:** {', '.join(profile.do_not_say)}",
         f"- **Keywords:** {', '.join(profile.keywords)}",
+        f"- **Has Brand Document:** {'yes' if profile.has_brand_document else 'no'}",
+        f"- **Brand Document Path:** {profile.brand_document_path}",
         "",
     ]
 

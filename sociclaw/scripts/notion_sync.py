@@ -68,12 +68,13 @@ class NotionSync:
         Returns:
             Created page object
         """
+        content_text = post.details or post.text
         properties = {
             "Title": {
                 "title": [{"text": {"content": self._summarize_title(post.text)}}]
             },
             "Content": {
-                "rich_text": [{"text": {"content": post.text}}]
+                "rich_text": [{"text": {"content": content_text[:1900]}}]
             },
             "Date": {
                 "date": {"start": self._format_datetime(post)}

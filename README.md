@@ -161,7 +161,10 @@ Preflight and Brand Brain:
 
 - `check-env` validates critical env/settings before setup.
 - `briefing` creates/updates `.sociclaw/company_profile.md` used by content generation.
+- `briefing` also captures `content_language` and optional brand-document path for better localization/context.
+- Scheduler defaults to a starter plan (`14 days x 1 post/day`) to reduce first-run token/cost friction.
 - Trello sync now includes an internal post marker (`SociClaw-ID`) to avoid duplicate cards on retries.
+- Trello columns are now minimal and dynamic: only the current planning window months are created, starting from "today", and cards auto-route to the post month list.
 
 Topup flow (txHash):
 

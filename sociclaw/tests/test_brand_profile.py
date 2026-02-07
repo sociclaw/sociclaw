@@ -13,11 +13,14 @@ def test_brand_profile_roundtrip(tmp_path):
         name="SociClaw",
         slogan="Ship posts daily",
         voice_tone="Witty",
+        content_language="pt-BR",
         target_audience="Founders",
         value_proposition="Automate social output",
         key_themes=["Automation", "Growth"],
         do_not_say=["spam"],
         keywords=["SociClaw", "AI"],
+        has_brand_document=True,
+        brand_document_path="/docs/brand.md",
     )
 
     saved = save_brand_profile(original, path)
@@ -25,8 +28,11 @@ def test_brand_profile_roundtrip(tmp_path):
 
     assert loaded.name == "SociClaw"
     assert loaded.voice_tone == "Witty"
+    assert loaded.content_language == "pt-BR"
     assert loaded.key_themes == ["Automation", "Growth"]
     assert loaded.keywords == ["SociClaw", "AI"]
+    assert loaded.has_brand_document is True
+    assert loaded.brand_document_path == "/docs/brand.md"
 
 
 def test_content_generator_applies_brand_constraints(tmp_path):
@@ -37,6 +43,7 @@ def test_content_generator_applies_brand_constraints(tmp_path):
             do_not_say=["shitcoin"],
             keywords=["SociClaw"],
             key_themes=["Crypto"],
+            content_language="en",
         ),
         profile_path,
     )
@@ -81,6 +88,12 @@ def test_cli_briefing_non_interactive(tmp_path):
             "spam",
             "--keywords",
             "SociClaw,AI",
+            "--content-language",
+            "pt-BR",
+            "--has-brand-document",
+            "--brand-document-path",
+            "/docs/brand.md",
+            "--non-interactive",
         ]
     )
 
@@ -90,3 +103,5 @@ def test_cli_briefing_non_interactive(tmp_path):
     loaded = load_brand_profile(Path(path))
     assert loaded.target_audience == "Creators"
     assert loaded.keywords == ["SociClaw", "AI"]
+    assert loaded.content_language == "pt-BR"
+    assert loaded.has_brand_document is True

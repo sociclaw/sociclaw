@@ -2,6 +2,7 @@ import asyncio
 from datetime import datetime
 from unittest.mock import MagicMock
 
+from sociclaw.scripts.brand_profile import BrandProfile
 from sociclaw.scripts.content_generator import ContentGenerator, GeneratedPost
 from sociclaw.scripts.image_generator import ImageGenerator
 from sociclaw.scripts.notion_sync import NotionSync
@@ -62,8 +63,10 @@ def test_quarterly_scheduler():
     trend_data.hashtags = ["Crypto", "Web3", "Blockchain"]
 
     plans = scheduler.generate_quarterly_plan(trend_data)
+    full = scheduler.generate_quarterly_plan(trend_data, starter_mode=False)
 
-    assert len(plans) == 180
+    assert len(plans) == 14
+    assert len(full) == 180
     assert all(isinstance(plan, PostPlan) for plan in plans)
 
 
@@ -81,7 +84,33 @@ def test_content_generator():
 
     assert len(post.text) <= generator.MAX_TWEET_LENGTH
     assert post.image_prompt
+    assert post.title
+    assert post.body
+    assert post.details
     assert isinstance(post, GeneratedPost)
+
+
+def test_content_generator_uses_brand_language_for_details():
+    generator = ContentGenerator(
+        brand_profile=BrandProfile(
+            name="SociClaw",
+            content_language="pt-BR",
+            keywords=["SociClaw"],
+        )
+    )
+    plan = PostPlan(
+        date=datetime.utcnow(),
+        time=13,
+        category="tips",
+        topic="gestao de risco",
+        hashtags=["Crypto", "Web3", "Seguranca"],
+    )
+
+    post = generator.generate_post(plan)
+
+    assert "Titulo:" in post.details
+    assert "Conteudo:" in post.details
+    assert "CTA:" in post.details
 
 
 def test_image_generator(monkeypatch, tmp_path):
@@ -154,6 +183,197 @@ def test_trello_sync(sample_generated_posts):
 
     assert created == card
     list_obj.add_card.assert_called_once()
+
+
+def test_trello_sync_required_lists_start_from_current_month(monkeypatch):
+    monkeypatch.setenv("SOCICLAW_TRELLO_PLAN_WINDOW_DAYS", "40")
+    sync = TrelloSync(api_key="key", token="token", board_id="board", client=MagicMock(), request_delay_seconds=0)
+
+    names = sync._required_list_names(reference_date=datetime(2026, 2, 6))
+
+    assert names[0] == "Backlog"
+    assert "January 2026" not in names
+    assert "February 2026" in names
+    assert "March 2026" in names
+    assert names[-3:] == ["Review", "Scheduled", "Published"]
+
+
+def test_trello_sync_archives_only_empty_default_lists():
+    sync = TrelloSync(api_key="key", token="token", board_id="board", client=MagicMock(), request_delay_seconds=0)
+
+    todo = MagicMock()
+    todo.name = "To Do"
+    todo.list_cards.return_value = []
+
+    doing = MagicMock()
+    doing.name = "Doing"
+    doing.list_cards.return_value = [MagicMock()]
+
+    custom = MagicMock()
+    custom.name = "Backlog"
+    custom.list_cards.return_value = []
+
+    sync._archive_default_bootstrap_lists([todo, doing, custom])
+
+    todo.close.assert_called_once()
+    doing.close.assert_not_called()
+    custom.close.assert_not_called()
+
+
+def test_trello_sync_create_card_routes_to_post_month_list():
+    client = MagicMock()
+    board = MagicMock()
+
+    month_list = MagicMock()
+    month_list.name = "February 2026"
+    month_list.list_cards.return_value = []
+    month_card = MagicMock()
+    month_list.add_card.return_value = month_card
+
+    backlog_list = MagicMock()
+    backlog_list.name = "Backlog"
+    backlog_list.list_cards.return_value = []
+    backlog_list.add_card.return_value = MagicMock()
+
+    board.list_lists.return_value = [month_list, backlog_list]
+    board.get_labels.return_value = []
+    board.add_label.return_value = MagicMock()
+    month_card.get_checklists.return_value = []
+    month_card.add_checklist.return_value = MagicMock()
+    client.get_board.return_value = board
+
+    post = GeneratedPost(
+        text="Post text",
+        image_prompt="Prompt",
+        title="Post title",
+        body="Post body",
+        details="Title: Post title\nBody: Post body",
+        hashtags=["SociClaw"],
+        category="tips",
+        date="2026-02-06",
+        time=13,
+    )
+
+    sync = TrelloSync(api_key="key", token="token", board_id="board", client=client, request_delay_seconds=0)
+    sync.setup_board()
+    created = sync.create_card(post)
+
+    assert created == month_card
+    month_list.add_card.assert_called_once()
+    backlog_list.add_card.assert_not_called()
+
+
+def test_trello_sync_create_card_falls_back_to_backlog_without_date():
+    client = MagicMock()
+    board = MagicMock()
+
+    backlog_list = MagicMock()
+    backlog_list.name = "Backlog"
+    backlog_list.list_cards.return_value = []
+    backlog_card = MagicMock()
+    backlog_list.add_card.return_value = backlog_card
+
+    board.list_lists.return_value = [backlog_list]
+    board.get_labels.return_value = []
+    board.add_label.return_value = MagicMock()
+    backlog_card.get_checklists.return_value = []
+    backlog_card.add_checklist.return_value = MagicMock()
+    client.get_board.return_value = board
+
+    post = GeneratedPost(
+        text="Post text",
+        image_prompt="Prompt",
+        title="Post title",
+        body="Post body",
+        details="Title: Post title\nBody: Post body",
+        hashtags=["SociClaw"],
+        category="tips",
+        date=None,
+        time=None,
+    )
+
+    sync = TrelloSync(api_key="key", token="token", board_id="board", client=client, request_delay_seconds=0)
+    sync.setup_board()
+    created = sync.create_card(post)
+
+    assert created == backlog_card
+    backlog_list.add_card.assert_called_once()
+
+
+def test_trello_sync_ensure_lists_keeps_required_columns_at_front():
+    client = MagicMock()
+    board = MagicMock()
+
+    backlog = MagicMock()
+    backlog.name = "Backlog"
+    feb = MagicMock()
+    feb.name = "February 2026"
+    review = MagicMock()
+    review.name = "Review"
+    scheduled = MagicMock()
+    scheduled.name = "Scheduled"
+    published = MagicMock()
+    published.name = "Published"
+    custom = MagicMock()
+    custom.name = "Ideas"
+
+    for lst in [backlog, feb, review, scheduled, published, custom]:
+        lst.list_cards.return_value = []
+
+    board.list_lists.return_value = [custom, scheduled, review, feb, backlog, published]
+    client.get_board.return_value = board
+
+    sync = TrelloSync(api_key="key", token="token", board_id="board", client=client, request_delay_seconds=0)
+    sync.board = board
+    sync._required_list_names = MagicMock(
+        return_value=["Backlog", "February 2026", "Review", "Scheduled", "Published"]
+    )
+
+    sync._ensure_lists()
+
+    board.add_list.assert_not_called()
+    backlog.set_pos.assert_called_once_with("top")
+    feb.set_pos.assert_called_once_with("top")
+    review.set_pos.assert_called_once_with("top")
+    scheduled.set_pos.assert_called_once_with("top")
+    published.set_pos.assert_called_once_with("top")
+    custom.set_pos.assert_not_called()
+
+
+def test_trello_sync_prefers_details_in_card_description():
+    client = MagicMock()
+    board = MagicMock()
+    list_obj = MagicMock()
+    list_obj.name = "Backlog"
+    list_obj.list_cards.return_value = []
+    card = MagicMock()
+    list_obj.add_card.return_value = card
+
+    board.list_lists.return_value = [list_obj]
+    board.get_labels.return_value = []
+    board.add_label.return_value = MagicMock()
+    card.get_checklists.return_value = []
+    card.add_checklist.return_value = MagicMock()
+    client.get_board.return_value = board
+
+    post = GeneratedPost(
+        text="Short post text",
+        image_prompt="Prompt",
+        title="Post title",
+        body="Post body",
+        details="Title: Post title\nBody: Post body\nCTA: Next step",
+        hashtags=["SociClaw"],
+        category="tips",
+        date="2026-02-06",
+        time=13,
+    )
+
+    sync = TrelloSync(api_key="key", token="token", board_id="board", client=client, request_delay_seconds=0)
+    sync.setup_board()
+    sync.create_card(post)
+
+    kwargs = list_obj.add_card.call_args.kwargs
+    assert "Title: Post title" in kwargs["desc"]
 
 
 def test_trello_sync_idempotent_card_creation(sample_generated_posts):

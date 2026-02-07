@@ -18,6 +18,9 @@ class RuntimeConfig:
     provider_user_id: str = ""
     user_niche: str = ""
     posting_frequency: str = "2/day"
+    content_language: str = "en"
+    has_brand_document: bool = False
+    brand_document_path: str = ""
     use_trello: bool = False
     use_notion: bool = False
     timezone: str = "UTC"
@@ -42,6 +45,9 @@ class RuntimeConfigStore:
             provider_user_id=str(data.get("provider_user_id", "")),
             user_niche=str(data.get("user_niche", "")),
             posting_frequency=str(data.get("posting_frequency", "2/day")),
+            content_language=str(data.get("content_language", "en")),
+            has_brand_document=bool(data.get("has_brand_document", False)),
+            brand_document_path=str(data.get("brand_document_path", "")),
             use_trello=bool(data.get("use_trello", False)),
             use_notion=bool(data.get("use_notion", False)),
             timezone=str(data.get("timezone", "UTC")),

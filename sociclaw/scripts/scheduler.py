@@ -62,9 +62,11 @@ class QuarterlyScheduler:
     # Default peak hours (UTC) if trend data doesn't provide them
     DEFAULT_PEAK_HOURS = [13, 14, 17, 18, 21, 22]
 
-    # Planning horizon
-    DAYS_PER_QUARTER = 90
-    POSTS_PER_DAY = 2
+    # Planning horizon presets
+    FULL_PLAN_DAYS = 90
+    FULL_PLAN_POSTS_PER_DAY = 2
+    STARTER_PLAN_DAYS = 14
+    STARTER_PLAN_POSTS_PER_DAY = 1
 
     def __init__(self):
         """Initialize the QuarterlyScheduler."""
@@ -73,22 +75,41 @@ class QuarterlyScheduler:
     def generate_quarterly_plan(
         self,
         trend_data: TrendData,
-        start_date: Optional[datetime] = None
+        start_date: Optional[datetime] = None,
+        *,
+        days: Optional[int] = None,
+        posts_per_day: Optional[int] = None,
+        starter_mode: bool = True,
     ) -> List[PostPlan]:
         """
-        Generate a quarterly content plan (180 posts over 90 days).
+        Generate a content plan.
+
+        Default behavior is starter-friendly to avoid token/cost frustration for
+        first-time users. For the full quarterly plan, call with
+        `starter_mode=False` or provide explicit days/posts_per_day values.
 
         Args:
             trend_data: TrendData object from research module
             start_date: Start date for the plan. If not provided, uses today.
+            days: Optional explicit number of days to generate.
+            posts_per_day: Optional explicit number of posts per day.
+            starter_mode: If True, use a smaller initial plan by default.
 
         Returns:
-            List of PostPlan objects for 90 days (2 posts per day = 180 posts)
+            List of PostPlan objects.
         """
-        logger.info("Generating quarterly content plan...")
+        logger.info("Generating content plan...")
 
         if start_date is None:
             start_date = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+
+        if days is None:
+            days = self.STARTER_PLAN_DAYS if starter_mode else self.FULL_PLAN_DAYS
+        if posts_per_day is None:
+            posts_per_day = self.STARTER_PLAN_POSTS_PER_DAY if starter_mode else self.FULL_PLAN_POSTS_PER_DAY
+
+        days = max(1, int(days))
+        posts_per_day = max(1, int(posts_per_day))
 
         # Determine peak hours to use
         peak_hours = self._determine_peak_hours(trend_data)
@@ -97,16 +118,16 @@ class QuarterlyScheduler:
         topics_pool = self._prepare_topics_pool(trend_data)
         hashtags_pool = trend_data.hashtags if trend_data.hashtags else []
 
-        # Build a 90-day schedule (2 posts/day = 180 posts)
+        # Build the schedule
         post_plans = []
         category_schedule = self._build_weekly_category_schedule()
 
-        total_posts = self.DAYS_PER_QUARTER * self.POSTS_PER_DAY
-        for day_index in range(self.DAYS_PER_QUARTER):
+        total_posts = days * posts_per_day
+        for day_index in range(days):
             post_date = start_date + timedelta(days=day_index)
 
-            for post_slot in range(self.POSTS_PER_DAY):
-                post_index = day_index * self.POSTS_PER_DAY + post_slot
+            for post_slot in range(posts_per_day):
+                post_index = day_index * posts_per_day + post_slot
 
                 # Select category based on weekly distribution
                 category = category_schedule[post_index % len(category_schedule)]

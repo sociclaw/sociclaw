@@ -13,6 +13,7 @@ import json
 import random
 import re
 from dataclasses import dataclass, field
+from collections import deque
 from typing import List, Dict, Optional
 from pathlib import Path
 
@@ -39,6 +40,9 @@ class GeneratedPost:
     """
     text: str
     image_prompt: str
+    title: str = ""
+    body: str = ""
+    details: str = ""
     hashtags: List[str] = field(default_factory=list)
     category: str = ""
     date: Optional[str] = None
@@ -66,6 +70,155 @@ class ContentGenerator:
 
     # Maximum tweet length
     MAX_TWEET_LENGTH = 280
+    RECENT_TEMPLATE_MEMORY = 20
+    INSIGHT_SNIPPETS = {
+        "market_analysis": [
+            "Focus on momentum and confirmation before committing to a direction.",
+            "Treat this as a scenario map, not a prediction.",
+            "Watch volume and reaction speed around key levels.",
+        ],
+        "educational": [
+            "Start simple, then add complexity only when the basics are stable.",
+            "The fastest way to learn is to apply this in a small real example today.",
+            "Consistency beats intensity when building skill in Web3.",
+        ],
+        "news": [
+            "The practical impact is usually clearer after the first implementation wave.",
+            "Track what changes for users, not just what changes in headlines.",
+            "The second-order effects matter more than the announcement itself.",
+        ],
+        "tips": [
+            "A small process upgrade here can prevent costly mistakes later.",
+            "Use this as a repeatable habit, not a one-time fix.",
+            "Do this once now and you save stress every week.",
+        ],
+        "opinion": [
+            "Agree or disagree, but measure outcomes and adapt fast.",
+            "The strongest edge is clear execution, not loud conviction.",
+            "Debate is useful only when it improves your next action.",
+        ],
+        "thread": [
+            "Below is a compact framework you can apply immediately.",
+            "Use this thread as a checklist you can revisit.",
+            "Save this and compare against your next execution cycle.",
+        ],
+        "meme": [
+            "Funny because it is painfully true in every cycle.",
+            "If this hit too close, you are probably doing it right.",
+            "Laugh now, then fix the process.",
+        ],
+    }
+    CTA_SNIPPETS = {
+        "market_analysis": [
+            "What is your invalidation level?",
+            "What signal are you watching next?",
+            "Would you wait for confirmation or front-run this move?",
+        ],
+        "educational": [
+            "Want a step-by-step version?",
+            "Should I break this into a checklist?",
+            "Which part should I explain with examples?",
+        ],
+        "news": [
+            "Do you see this as noise or structural change?",
+            "What is the first consequence you expect?",
+            "Who benefits the most if this trend continues?",
+        ],
+        "tips": [
+            "Want more tactical tips like this?",
+            "Should I turn this into a daily checklist?",
+            "Which operational tip do you want next?",
+        ],
+        "opinion": [
+            "Do you agree or disagree?",
+            "What would change your mind here?",
+            "What is the strongest counterpoint?",
+        ],
+        "thread": [
+            "Reply if you want part 2.",
+            "Should I publish a practical template for this?",
+            "Want a one-page summary after this thread?",
+        ],
+        "meme": [
+            "Too real or too far?",
+            "Which part felt most accurate?",
+            "Tag a friend who needed this today.",
+        ],
+    }
+    INSIGHT_SNIPPETS_PT = {
+        "market_analysis": [
+            "Trate isso como mapa de cenarios, nao como previsao.",
+            "Observe volume e reacao nos niveis-chave antes de agir.",
+            "Gestao de risco primeiro, conviccao depois.",
+        ],
+        "educational": [
+            "Comece simples e so adicione complexidade quando a base estiver clara.",
+            "Aprendizado real vem de aplicacao pratica imediata.",
+            "Consistencia vence intensidade no longo prazo.",
+        ],
+        "news": [
+            "O impacto real aparece na execucao, nao no anuncio.",
+            "Acompanhe mudanca de comportamento do usuario.",
+            "Efeito de segunda ordem costuma ser o mais relevante.",
+        ],
+        "tips": [
+            "Uma melhoria pequena no processo evita erros caros depois.",
+            "Transforme isso em habito, nao em acao unica.",
+            "Padrao simples e repetivel traz mais resultado.",
+        ],
+        "opinion": [
+            "Opinioes so valem quando melhoram a execucao.",
+            "A vantagem vem de clareza e disciplina operacional.",
+            "Teste, meca e ajuste rapido.",
+        ],
+        "thread": [
+            "Abaixo esta um framework direto para aplicar hoje.",
+            "Use esta thread como checklist operacional.",
+            "Salve para comparar com seu proximo ciclo de execucao.",
+        ],
+        "meme": [
+            "Engracado porque e real em quase todo ciclo.",
+            "Se doeu, provavelmente era necessario.",
+            "Ria agora, ajuste o processo depois.",
+        ],
+    }
+    CTA_SNIPPETS_PT = {
+        "market_analysis": [
+            "Qual seria seu nivel de invalidacao?",
+            "Que sinal voce esta esperando para confirmar?",
+            "Voce esperaria confirmacao ou anteciparia o movimento?",
+        ],
+        "educational": [
+            "Quer que eu quebre isso em checklist?",
+            "Quer exemplos praticos em sequencia?",
+            "Qual parte voce quer aprofundar?",
+        ],
+        "news": [
+            "Isso e ruido ou mudanca estrutural?",
+            "Qual primeira consequencia voce espera?",
+            "Quem mais se beneficia se essa tendencia continuar?",
+        ],
+        "tips": [
+            "Quer mais taticas praticas como essa?",
+            "Quer uma rotina diaria com esses pontos?",
+            "Qual dica operacional devo cobrir em seguida?",
+        ],
+        "opinion": [
+            "Voce concorda ou discorda?",
+            "O que faria voce mudar de opiniao?",
+            "Qual o melhor contraponto para isso?",
+        ],
+        "thread": [
+            "Quer parte 2 com execucao pratica?",
+            "Quer um template pronto para aplicar?",
+            "Quer resumo em uma pagina no final?",
+        ],
+        "meme": [
+            "Foi longe ou foi real demais?",
+            "Qual parte te representou mais?",
+            "Marca alguem que precisava ler isso hoje.",
+        ],
+    }
 
     def __init__(
         self,
@@ -86,6 +239,7 @@ class ContentGenerator:
 
         self.templates_path = templates_path
         self.templates: Dict[str, List[Dict]] = {}
+        self._recent_template_keys: deque[str] = deque(maxlen=self.RECENT_TEMPLATE_MEMORY)
         self.brand_profile_path = brand_profile_path
         self.brand_profile = brand_profile or load_brand_profile(brand_profile_path)
         self._load_templates()
@@ -170,65 +324,101 @@ class ContentGenerator:
                 logger.warning(f"No templates for category {plan.category}")
                 category_templates = list(self.templates.values())[0]
 
-            # Select random template
-            template = random.choice(category_templates)
+            # Select template (avoiding recent repetition)
+            template = self._choose_template(plan, category_templates)
 
-            # Generate text
-            text = self._generate_text(plan, template)
+            # Generate content blocks
+            blocks = self._generate_content_blocks(plan, template)
 
             # Generate image prompt
-            image_prompt = self._generate_image_prompt(plan, text)
+            image_prompt = self._generate_image_prompt(plan, f"{blocks['title']} {blocks['body']}".strip())
 
             # Create GeneratedPost
             post = GeneratedPost(
-                text=text,
+                text=blocks["text"],
                 image_prompt=image_prompt,
+                title=blocks["title"],
+                body=blocks["body"],
+                details=blocks["details"],
                 hashtags=plan.hashtags[:3],  # Limit to 3 hashtags
                 category=plan.category,
                 date=plan.date.strftime("%Y-%m-%d"),
                 time=plan.time
             )
 
-            logger.info(f"Generated post for {plan.category}: {text[:50]}...")
+            logger.info(f"Generated post for {plan.category}: {blocks['text'][:50]}...")
             return post
 
         except Exception as e:
             logger.error(f"Error generating post: {e}")
             raise
 
-    def _generate_text(self, plan: PostPlan, template: Dict) -> str:
+    def _choose_template(self, plan: PostPlan, category_templates: List[Dict]) -> Dict:
         """
-        Generate post text based on template and plan.
+        Choose a template while reducing repeated template reuse.
+        """
+        if len(category_templates) == 1:
+            chosen = category_templates[0]
+            signature = f"{plan.category}:{chosen.get('structure', '')}"
+            self._recent_template_keys.append(signature)
+            return chosen
+
+        candidates = []
+        for tpl in category_templates:
+            signature = f"{plan.category}:{tpl.get('structure', '')}"
+            if signature not in self._recent_template_keys:
+                candidates.append((tpl, signature))
+
+        if not candidates:
+            tpl = random.choice(category_templates)
+            signature = f"{plan.category}:{tpl.get('structure', '')}"
+        else:
+            tpl, signature = random.choice(candidates)
+
+        self._recent_template_keys.append(signature)
+        return tpl
+
+    def _generate_content_blocks(self, plan: PostPlan, template: Dict) -> Dict[str, str]:
+        """
+        Generate structured content blocks with more depth and less repetition.
 
         Args:
             plan: PostPlan with topic and category
             template: Template dict with structure and examples
 
         Returns:
-            Generated text string (max 280 chars or thread)
+            Dict with title/body/text/details
         """
-        # Get tone for this category
-        tone = self.TONES.get(plan.category, "professional")
-
-        # Build text based on template structure
+        # Build base text based on template structure
         if "structure" in template:
-            # Simple replacement-based generation
-            text = template["structure"]
+            base_text = template["structure"]
 
             replacements = {
                 "topic": plan.topic,
-                "insight": "Key levels to watch",
-                "trend": "Momentum building",
-                "conclusion": "Watch for confirmation",
+                "insight": random.choice(
+                    [
+                        "a high-signal setup worth watching",
+                        "a practical angle you can act on",
+                        "an overlooked lever with asymmetric upside",
+                    ]
+                ),
+                "trend": random.choice(["momentum building", "trend consolidating", "expansion phase starting"]),
+                "conclusion": random.choice(
+                    [
+                        "Manage risk first, then size conviction.",
+                        "Wait for structure confirmation before scaling.",
+                        "Track reaction quality, not just direction.",
+                    ]
+                ),
                 "action": f"understand {plan.topic}",
-                "tip": "Start with the basics",
+                "tip": random.choice(["Start with one concrete example", "Define your risk limits first", "Use a repeatable process"]),
                 "headline": plan.topic,
-                "impact": "Big implications ahead",
-                "detail": "More details soon",
-                "context": "Worth keeping on your radar",
+                "impact": random.choice(["Potentially meaningful for adoption", "Could reshape short-term positioning", "Likely to influence execution decisions"]),
+                "detail": random.choice(["Implementation details will matter", "Watch how users actually adapt", "Monitor whether usage follows narrative"]),
+                "context": random.choice(["Worth keeping on your radar", "Context is still evolving", "Early signal, not final verdict"]),
                 "advice": plan.topic,
-                "benefit": "Security first",
-                "reasoning": "Here's why it matters.",
+                "benefit": random.choice(["Security first", "Lower downside risk", "Higher consistency over time"]),
+                "reasoning": random.choice(["Execution quality compounds.", "Discipline is the edge.", "Simple systems outperform reactive decisions."]),
                 "hot_take": plan.topic,
                 "statement": plan.topic,
                 "intro": "Understanding the fundamentals",
@@ -243,13 +433,19 @@ class ContentGenerator:
             }
 
             for key, value in replacements.items():
-                text = text.replace(f"{{{key}}}", value)
+                base_text = base_text.replace(f"{{{key}}}", value)
 
             # Replace any remaining placeholders
-            text = re.sub(r"{[^}]+}", "details", text)
+            base_text = re.sub(r"{[^}]+}", "details", base_text)
         else:
             # Fallback to example if no structure
-            text = template.get("example", plan.topic)
+            base_text = template.get("example", plan.topic)
+
+        title = self._build_title(plan, base_text)
+        body = self._build_body(plan, base_text)
+        cta = random.choice(self._cta_pool(plan.category))
+
+        text = f"{title}\n{body}\n{cta}".strip()
 
         # Enforce brand constraints before hashtags/length handling.
         text = self._apply_brand_constraints(text)
@@ -267,7 +463,68 @@ class ContentGenerator:
             if hashtags_text:
                 text = f"{text} {hashtags_text}"
 
-        return text.strip()
+        if self._resolve_content_language() == "pt":
+            details = (
+                f"Titulo: {title}\n"
+                f"Conteudo: {body}\n"
+                f"CTA: {cta}\n"
+                f"Topico: {plan.topic}\n"
+                f"Categoria: {plan.category}"
+            )
+        else:
+            details = (
+                f"Title: {title}\n"
+                f"Body: {body}\n"
+                f"CTA: {cta}\n"
+                f"Topic: {plan.topic}\n"
+                f"Category: {plan.category}"
+            )
+
+        return {
+            "title": title.strip(),
+            "body": body.strip(),
+            "text": text.strip(),
+            "details": details.strip(),
+        }
+
+    def _resolve_content_language(self) -> str:
+        lang = (self.brand_profile.content_language or "").strip().lower()
+        if not lang:
+            return "en"
+        if lang.startswith("pt"):
+            return "pt"
+        return "en"
+
+    def _insight_pool(self, category: str) -> List[str]:
+        if self._resolve_content_language() == "pt":
+            return self.INSIGHT_SNIPPETS_PT.get(category, self.INSIGHT_SNIPPETS_PT["tips"])
+        return self.INSIGHT_SNIPPETS.get(category, self.INSIGHT_SNIPPETS["tips"])
+
+    def _cta_pool(self, category: str) -> List[str]:
+        if self._resolve_content_language() == "pt":
+            return self.CTA_SNIPPETS_PT.get(category, self.CTA_SNIPPETS_PT["tips"])
+        return self.CTA_SNIPPETS.get(category, self.CTA_SNIPPETS["tips"])
+
+    def _build_title(self, plan: PostPlan, base_text: str) -> str:
+        primary = base_text.strip().splitlines()[0]
+        if self._resolve_content_language() == "pt" and "Thread:" in primary:
+            primary = primary.replace("Thread:", "Thread:")
+        # Keep titles compact and scannable.
+        if len(primary) > 90:
+            primary = primary[:87] + "..."
+        return primary
+
+    def _build_body(self, plan: PostPlan, base_text: str) -> str:
+        insight = random.choice(self._insight_pool(plan.category))
+        connector = "sobre" if self._resolve_content_language() == "pt" else "about"
+        body = f"{plan.topic} ({connector} {plan.category.replace('_', ' ')}): {insight}"
+        # If base text already contains richer context, blend it in lightly.
+        normalized = re.sub(r"\s+", " ", base_text).strip()
+        if normalized and len(normalized) < 140:
+            body = f"{normalized} {insight}"
+        if len(body) > 170:
+            body = body[:167] + "..."
+        return body
 
     def _apply_brand_constraints(self, text: str) -> str:
         """
