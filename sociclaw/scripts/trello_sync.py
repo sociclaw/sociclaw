@@ -128,11 +128,12 @@ class TrelloSync:
         if not target_list:
             raise ValueError("List not found: Backlog")
 
-        title = self._summarize_title(post.text)
         post_id = self._build_post_identity(post)
-        existing = self._find_card_by_identity(target_list, post_id)
+        existing = self._find_card_by_identity_anywhere(post_id)
         if existing:
             return existing
+
+        title = self._summarize_title(post.text)
 
         due_date = self._build_due_date(post)
         if post.details and post.details.strip():
@@ -152,6 +153,33 @@ class TrelloSync:
 
         self._ensure_checklist(card)
         return card
+
+    def attach_image_to_post(
+        self,
+        post: GeneratedPost,
+        *,
+        image_url: Optional[str] = None,
+        image_path: Optional[str] = None,
+    ):
+        """
+        Attach an image to the Trello card corresponding to a generated post.
+        Creates the card if it does not exist yet.
+        """
+        post_id = self._build_post_identity(post)
+        card = self._find_card_by_identity_anywhere(post_id)
+        if not card:
+            card = self.create_card(post)
+
+        if image_url:
+            card.attach(name="image", url=image_url)
+            self._throttle()
+            return card
+        if image_path:
+            with open(image_path, "rb") as handle:
+                card.attach(name="image", file=handle)
+            self._throttle()
+            return card
+        raise ValueError("image_url or image_path is required")
 
     def update_card_status(self, card_id: str, list_name: str):
         """
@@ -380,4 +408,21 @@ class TrelloSync:
             desc = getattr(card, "description", "") or ""
             if marker in desc:
                 return card
+        return None
+
+    def _find_card_by_identity_anywhere(self, post_id: str):
+        marker = f"[SociClaw-ID:{post_id}]"
+        try:
+            lists = self.board.list_lists("open")
+        except Exception:
+            return None
+        for lst in lists:
+            try:
+                cards = lst.list_cards()
+            except Exception:
+                continue
+            for card in cards:
+                desc = getattr(card, "description", "") or ""
+                if marker in desc:
+                    return card
         return None

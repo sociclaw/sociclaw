@@ -53,8 +53,8 @@ class ImageGenerator:
         jobs_base_url: Optional[str] = None,
         image_url: Optional[str] = None,
         webhook_url: Optional[str] = None,
-        timeout_seconds: int = 180,
-        poll_interval_seconds: int = 5,
+        timeout_seconds: Optional[int] = None,
+        poll_interval_seconds: Optional[int] = None,
         provider_client: Optional[ImageProviderClient] = None,
         # Shared
         output_dir: Optional[Path] = None,
@@ -86,8 +86,8 @@ class ImageGenerator:
             webhook_url
             or os.getenv("SOCICLAW_WEBHOOK_URL")
         )
-        self.timeout_seconds = int(timeout_seconds)
-        self.poll_interval_seconds = int(poll_interval_seconds)
+        self.timeout_seconds = int(timeout_seconds or os.getenv("SOCICLAW_IMAGE_TIMEOUT_SECONDS") or 120)
+        self.poll_interval_seconds = int(poll_interval_seconds or os.getenv("SOCICLAW_IMAGE_POLL_INTERVAL_SECONDS") or 2)
 
         _api_key = (
             api_key

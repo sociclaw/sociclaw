@@ -19,22 +19,25 @@ Examples (PowerShell):
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import os
 import time
 from datetime import datetime
+from dataclasses import asdict
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from .brand_profile import BrandProfile, default_brand_profile_path, load_brand_profile, save_brand_profile
-from .content_generator import ContentGenerator
+from .content_generator import ContentGenerator, GeneratedPost
+from .research import TrendData, TrendResearcher
 from .provisioning_client import ProvisioningClient
 from .provisioning_gateway import SociClawProvisioningGatewayClient
 from .image_generator import ImageGenerator
 from .local_session_store import LocalSessionStore, default_db_path
 from .notion_sync import NotionSync
 from .runtime_config import RuntimeConfig, RuntimeConfigStore, default_runtime_config_path
-from .scheduler import PostPlan
+from .scheduler import PostPlan, QuarterlyScheduler
 from .state_store import StateStore, default_state_path
 from .topup_client import TopupClient
 from .trello_sync import TrelloSync
@@ -59,6 +62,112 @@ def _validated_provider_fields(provider: str, provider_user_id: str) -> tuple[st
         return p, u
     except ValueError as exc:
         raise SystemExit(str(exc))
+
+
+def _default_plan_path() -> Path:
+    repo_root = Path(__file__).resolve().parents[2]
+    return repo_root / ".sociclaw" / "planned_posts.json"
+
+
+def _load_planned_posts(path: Optional[Path] = None) -> List[dict]:
+    plan_path = path or _default_plan_path()
+    if not plan_path.exists():
+        return []
+    try:
+        payload = json.loads(plan_path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    return list(payload.get("posts", []))
+
+
+def _save_planned_posts(posts: List[dict], path: Optional[Path] = None) -> Path:
+    plan_path = path or _default_plan_path()
+    plan_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "version": 1,
+        "updated_at": datetime.utcnow().isoformat() + "Z",
+        "posts": posts,
+    }
+    plan_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return plan_path
+
+
+def _parse_posts_per_day(freq: str) -> int:
+    raw = (freq or "").strip().lower()
+    if not raw:
+        return 1
+    if "/day" in raw:
+        left = raw.split("/day", 1)[0].strip()
+        if left.isdigit():
+            return max(1, int(left))
+    digits = "".join(ch for ch in raw if ch.isdigit())
+    return max(1, int(digits)) if digits else 1
+
+
+def _resolve_identity_from_runtime(args: argparse.Namespace, runtime: RuntimeConfig) -> tuple[str, str]:
+    provider = args.provider or runtime.provider
+    provider_user_id = str(args.provider_user_id or runtime.provider_user_id or "")
+    if not provider_user_id:
+        raise SystemExit("Missing provider_user_id. Run /sociclaw setup first.")
+    return _validated_provider_fields(provider, provider_user_id)
+
+
+def _logo_directed_prompt(base_prompt: str, has_logo_input: bool) -> str:
+    if not has_logo_input:
+        return base_prompt
+    directive = (
+        "Use the attached logo image as the primary brand reference. "
+        "Integrate the logo naturally, keep it recognizable, and keep visual hierarchy clean like an art director."
+    )
+    text = (base_prompt or "").strip()
+    if not text:
+        return directive
+    return f"{text}. {directive}"
+
+
+def _fallback_trend_data(niche: str) -> TrendData:
+    topic = (niche or "AI agents").strip()
+    hashtags = ["SociClaw", "AI", "Automation"]
+    if topic:
+        normalized = "".join(ch for ch in topic if ch.isalnum())
+        if normalized:
+            hashtags.append(normalized[:20])
+    return TrendData(
+        topics=[topic or "AI agents", "workflow automation", "creator growth"],
+        formats={"thread": 10, "image": 8},
+        peak_hours=[13, 17, 21],
+        hashtags=hashtags,
+        sample_posts=[],
+    )
+
+
+def _postplan_from_generated(post: dict) -> PostPlan:
+    date_str = str(post.get("date") or datetime.utcnow().strftime("%Y-%m-%d"))
+    try:
+        date = datetime.fromisoformat(date_str)
+    except ValueError:
+        date = datetime.utcnow()
+    return PostPlan(
+        date=date,
+        time=int(post.get("time") or 13),
+        category=str(post.get("category") or "tips"),
+        topic=str(post.get("title") or post.get("body") or "SociClaw update"),
+        hashtags=list(post.get("hashtags") or []),
+    )
+
+
+def _generated_post_from_dict(item: dict) -> GeneratedPost:
+    return GeneratedPost(
+        text=str(item.get("text") or ""),
+        image_prompt=str(item.get("image_prompt") or ""),
+        title=str(item.get("title") or ""),
+        body=str(item.get("body") or ""),
+        details=str(item.get("details") or ""),
+        hashtags=list(item.get("hashtags") or []),
+        category=str(item.get("category") or ""),
+        date=str(item.get("date") or ""),
+        time=int(item.get("time") or 13),
+    )
 
 
 def cmd_provision_image(args: argparse.Namespace) -> int:
@@ -176,8 +285,9 @@ def cmd_generate_image(args: argparse.Namespace) -> int:
         payment_handler=None,
     )
 
+    prompt = _logo_directed_prompt(args.prompt, bool(image_url))
     # user_address is just an identifier for the upstream image API ("user_id" field)
-    r = gen.generate_image(args.prompt, user_address=f"{u.provider}:{u.provider_user_id}")
+    r = gen.generate_image(prompt, user_address=f"{u.provider}:{u.provider_user_id}")
     print(json.dumps({"url": r.url, "local_path": str(r.local_path) if r.local_path else None}, indent=2))
     return 0
 
@@ -424,6 +534,327 @@ def cmd_briefing(args: argparse.Namespace) -> int:
     out_path = save_brand_profile(updated, profile_path)
     print(json.dumps({"saved": True, "path": str(out_path)}, indent=2))
     return 0
+
+
+def cmd_home(args: argparse.Namespace) -> int:
+    print(
+        json.dumps(
+            {
+                "agent": "SociClaw",
+                "message": "Ready. Use setup, plan, generate, status, pay, or update.",
+                "next": "Run /sociclaw setup to configure your account.",
+            },
+            indent=2,
+        )
+    )
+    return 0
+
+
+def cmd_plan(args: argparse.Namespace) -> int:
+    runtime_store = RuntimeConfigStore(Path(args.config_path) if args.config_path else None)
+    runtime = runtime_store.load()
+    provider, provider_user_id = _resolve_identity_from_runtime(args, runtime)
+
+    if args.days is not None:
+        days = max(1, int(args.days))
+    elif args.quarter or args.full:
+        days = QuarterlyScheduler.FULL_PLAN_DAYS
+    else:
+        days = QuarterlyScheduler.STARTER_PLAN_DAYS
+
+    if args.posts_per_day is not None:
+        posts_per_day = max(1, int(args.posts_per_day))
+    elif args.quarter or args.full:
+        posts_per_day = QuarterlyScheduler.FULL_PLAN_POSTS_PER_DAY
+    else:
+        posts_per_day = _parse_posts_per_day(runtime.posting_frequency or "1/day")
+
+    niche = args.topic or runtime.user_niche or "AI agents"
+    trend_data = _fallback_trend_data(niche)
+    if os.getenv("XAI_API_KEY") and not args.skip_research:
+        try:
+            researcher = TrendResearcher()
+            trend_data = asyncio.run(researcher.research_trends(niche, days=30))
+        except Exception as exc:
+            trend_data = _fallback_trend_data(niche)
+            trend_data.sample_posts = [{"error": f"research_fallback: {exc}"}]
+
+    scheduler = QuarterlyScheduler()
+    start_date = datetime.utcnow()
+    plans = scheduler.generate_quarterly_plan(
+        trend_data,
+        start_date=start_date,
+        days=days,
+        posts_per_day=posts_per_day,
+        starter_mode=False,
+    )
+    generator = ContentGenerator(brand_profile_path=Path(args.brand_profile_path) if args.brand_profile_path else None)
+    posts = generator.generate_batch(plans)
+    serialized = [asdict(p) for p in posts]
+    plan_path = _save_planned_posts(serialized, Path(args.plan_path) if args.plan_path else None)
+
+    trello_cards = 0
+    notion_pages = 0
+    if args.sync_trello or runtime.use_trello:
+        trello = TrelloSync()
+        trello.setup_board()
+        for post in posts:
+            trello.create_card(post)
+            trello_cards += 1
+
+    if args.sync_notion or runtime.use_notion:
+        notion = NotionSync()
+        for post in posts:
+            notion.create_page(post, status="Draft")
+            notion_pages += 1
+
+    print(
+        json.dumps(
+            {
+                "provider": provider,
+                "provider_user_id": provider_user_id,
+                "days": days,
+                "posts_per_day": posts_per_day,
+                "planned_posts": len(posts),
+                "plan_path": str(plan_path),
+                "trello_cards": trello_cards,
+                "notion_pages": notion_pages,
+                "starter_mode": days <= QuarterlyScheduler.STARTER_PLAN_DAYS and posts_per_day <= 1,
+            },
+            indent=2,
+        )
+    )
+    return 0
+
+
+def cmd_generate(args: argparse.Namespace) -> int:
+    runtime_store = RuntimeConfigStore(Path(args.config_path) if args.config_path else None)
+    runtime = runtime_store.load()
+    provider, provider_user_id = _resolve_identity_from_runtime(args, runtime)
+    plan_path = Path(args.plan_path) if args.plan_path else None
+    planned = _load_planned_posts(plan_path)
+    if not planned:
+        raise SystemExit("No planned posts found. Run /sociclaw plan first.")
+
+    today = datetime.utcnow().date()
+    due_today = []
+    future = []
+    for item in planned:
+        try:
+            d = datetime.fromisoformat(str(item.get("date"))).date()
+        except Exception:
+            d = today
+        if d <= today:
+            due_today.append(item)
+        else:
+            future.append(item)
+
+    count = max(1, int(args.count or _parse_posts_per_day(runtime.posting_frequency or "1/day")))
+    source = due_today if due_today else future
+    selected = source[:count]
+    selected_keys = {json.dumps(item, sort_keys=True) for item in selected}
+    remaining = [item for item in planned if json.dumps(item, sort_keys=True) not in selected_keys]
+
+    state = StateStore(Path(args.state_path) if args.state_path else None)
+    user = state.get_user(provider=provider, provider_user_id=provider_user_id)
+    can_generate_image = bool(user and user.image_api_key and (args.with_image or runtime.brand_logo_url))
+
+    image_generator = None
+    if can_generate_image:
+        image_generator = ImageGenerator(
+            api_key=user.image_api_key,
+            model=args.image_model or os.getenv("SOCICLAW_IMAGE_MODEL") or "nano-banana",
+            image_url=args.image_url or runtime.brand_logo_url or None,
+            timeout_seconds=int(os.getenv("SOCICLAW_IMAGE_TIMEOUT_SECONDS", "120")),
+            poll_interval_seconds=int(os.getenv("SOCICLAW_IMAGE_POLL_INTERVAL_SECONDS", "2")),
+            payment_handler=None,
+        )
+
+    trello = None
+    notion = None
+    if args.sync_trello or runtime.use_trello:
+        trello = TrelloSync()
+        trello.setup_board()
+    if args.sync_notion or runtime.use_notion:
+        notion = NotionSync()
+
+    results = []
+    for post_data in selected:
+        generated_post = _generated_post_from_dict(post_data)
+        if not generated_post.text:
+            post = _postplan_from_generated(post_data)
+            generated_post = ContentGenerator(
+                brand_profile_path=Path(args.brand_profile_path) if args.brand_profile_path else None
+            ).generate_post(post)
+
+        image_result = None
+        if image_generator:
+            directed_prompt = _logo_directed_prompt(
+                generated_post.image_prompt,
+                bool(image_generator.image_url),
+            )
+            image_result = image_generator.generate_image(
+                directed_prompt,
+                user_address=f"{provider}:{provider_user_id}",
+            )
+
+        card_id = None
+        if trello:
+            if image_result:
+                card = trello.attach_image_to_post(
+                    generated_post,
+                    image_url=image_result.url,
+                    image_path=str(image_result.local_path) if image_result.local_path else None,
+                )
+            else:
+                card = trello.create_card(generated_post)
+            card_id = getattr(card, "id", None)
+
+        notion_page_id = None
+        if notion:
+            page = notion.create_page(generated_post, status="Scheduled", image_url=(image_result.url if image_result else None))
+            notion_page_id = page.get("id") if isinstance(page, dict) else None
+
+        results.append(
+            {
+                "text": generated_post.text,
+                "image_prompt": generated_post.image_prompt,
+                "image_url": image_result.url if image_result else None,
+                "image_local_path": str(image_result.local_path) if image_result and image_result.local_path else None,
+                "trello_card_id": card_id,
+                "notion_page_id": notion_page_id,
+            }
+        )
+
+    _save_planned_posts(remaining, plan_path)
+    print(
+        json.dumps(
+            {
+                "provider": provider,
+                "provider_user_id": provider_user_id,
+                "generated": len(results),
+                "remaining_planned_posts": len(remaining),
+                "results": results,
+            },
+            indent=2,
+        )
+    )
+    return 0
+
+
+def cmd_sync(args: argparse.Namespace) -> int:
+    runtime_store = RuntimeConfigStore(Path(args.config_path) if args.config_path else None)
+    runtime = runtime_store.load()
+    plan_path = Path(args.plan_path) if args.plan_path else None
+    planned = _load_planned_posts(plan_path)
+    if not planned:
+        print(json.dumps({"synced": 0, "message": "No planned posts to sync."}, indent=2))
+        return 0
+
+    synced_trello = 0
+    synced_notion = 0
+    if args.target in {"trello", "both"}:
+        trello = TrelloSync()
+        trello.setup_board()
+        for item in planned:
+            generated_post = _generated_post_from_dict(item)
+            if not generated_post.text:
+                post = _postplan_from_generated(item)
+                generated_post = ContentGenerator(
+                    brand_profile_path=Path(args.brand_profile_path) if args.brand_profile_path else None
+                ).generate_post(post)
+            trello.create_card(generated_post)
+            synced_trello += 1
+
+    if args.target in {"notion", "both"}:
+        notion = NotionSync()
+        for item in planned:
+            generated_post = _generated_post_from_dict(item)
+            if not generated_post.text:
+                post = _postplan_from_generated(item)
+                generated_post = ContentGenerator(
+                    brand_profile_path=Path(args.brand_profile_path) if args.brand_profile_path else None
+                ).generate_post(post)
+            notion.create_page(generated_post, status="Draft")
+            synced_notion += 1
+
+    print(
+        json.dumps(
+            {
+                "target": args.target,
+                "planned_posts": len(planned),
+                "synced_trello": synced_trello,
+                "synced_notion": synced_notion,
+                "runtime_trello_enabled": runtime.use_trello,
+                "runtime_notion_enabled": runtime.use_notion,
+            },
+            indent=2,
+        )
+    )
+    return 0
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    runtime_store = RuntimeConfigStore(Path(args.config_path) if args.config_path else None)
+    runtime = runtime_store.load()
+    provider, provider_user_id = _resolve_identity_from_runtime(args, runtime)
+    state = StateStore(Path(args.state_path) if args.state_path else None)
+    user = state.get_user(provider=provider, provider_user_id=provider_user_id)
+    planned = _load_planned_posts(Path(args.plan_path) if args.plan_path else None)
+    sessions = LocalSessionStore(Path(args.session_db_path) if args.session_db_path else None)
+    topup = sessions.get_session(_session_user_id(provider, provider_user_id))
+
+    print(
+        json.dumps(
+            {
+                "provider": provider,
+                "provider_user_id": provider_user_id,
+                "configured": bool(runtime.provider_user_id),
+                "has_image_api_key": bool(user and user.image_api_key),
+                "brand_logo_configured": bool(runtime.brand_logo_url),
+                "planned_posts": len(planned),
+                "trello_enabled": runtime.use_trello,
+                "notion_enabled": runtime.use_notion,
+                "pending_topup_session": bool(topup),
+            },
+            indent=2,
+        )
+    )
+    return 0
+
+
+def cmd_pay(args: argparse.Namespace) -> int:
+    runtime_store = RuntimeConfigStore(Path(args.config_path) if args.config_path else None)
+    runtime = runtime_store.load()
+    provider, provider_user_id = _resolve_identity_from_runtime(args, runtime)
+    forwarded = argparse.Namespace(
+        provider=provider,
+        provider_user_id=provider_user_id,
+        amount_usd=float(args.amount_usd),
+        base_url=args.base_url,
+        state_path=args.state_path,
+        session_db_path=args.session_db_path,
+    )
+    return cmd_topup_start(forwarded)
+
+
+def cmd_paid(args: argparse.Namespace) -> int:
+    runtime_store = RuntimeConfigStore(Path(args.config_path) if args.config_path else None)
+    runtime = runtime_store.load()
+    provider, provider_user_id = _resolve_identity_from_runtime(args, runtime)
+    forwarded = argparse.Namespace(
+        provider=provider,
+        provider_user_id=provider_user_id,
+        tx_hash=args.tx_hash,
+        session_id=args.session_id,
+        base_url=args.base_url,
+        wait=bool(args.wait),
+        wait_timeout_seconds=int(args.wait_timeout_seconds),
+        wait_interval_seconds=int(args.wait_interval_seconds),
+        state_path=args.state_path,
+        session_db_path=args.session_db_path,
+    )
+    return cmd_topup_claim(forwarded)
 
 
 def cmd_check_env(args: argparse.Namespace) -> int:
@@ -895,7 +1326,8 @@ def cmd_e2e_staging(args: argparse.Namespace) -> int:
                     image_url=image_url,
                     payment_handler=None,
                 )
-                image = image_gen.generate_image(args.image_prompt, user_address=f"{provider}:{provider_user_id}")
+                image_prompt = _logo_directed_prompt(args.image_prompt, bool(image_url))
+                image = image_gen.generate_image(image_prompt, user_address=f"{provider}:{provider_user_id}")
                 image_ok = True
                 image_result = {"url": image.url, "local_path": str(image.local_path) if image.local_path else None}
             except Exception as exc:
@@ -1092,7 +1524,8 @@ def cmd_self_update(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="sociclaw", description="SociClaw CLI")
-    sub = p.add_subparsers(dest="cmd", required=True)
+    sub = p.add_subparsers(dest="cmd")
+    p.set_defaults(func=cmd_home)
 
     p_prov = sub.add_parser("provision-image", help="Provision image account/API key for a provider user id")
     p_prov.add_argument("--provider", required=True, help="e.g. telegram")
@@ -1232,6 +1665,53 @@ def build_parser() -> argparse.ArgumentParser:
     p_setup = sub.add_parser("setup", help="Alias for setup-wizard")
     _add_setup_args(p_setup)
 
+    p_plan = sub.add_parser("plan", help="Generate and store a content plan")
+    p_plan.add_argument("--provider", default=None)
+    p_plan.add_argument("--provider-user-id", default=None)
+    p_plan.add_argument("--config-path", default=None, help="Optional runtime config path")
+    p_plan.add_argument("--brand-profile-path", default=None)
+    p_plan.add_argument("--plan-path", default=None)
+    p_plan.add_argument("--topic", default=None, help="Override niche/topic for planning")
+    p_plan.add_argument("--quarter", default=None, help="Quarter label (e.g. Q1) to force full planning mode")
+    p_plan.add_argument("--full", action="store_true", help="Generate full quarterly volume")
+    p_plan.add_argument("--days", type=int, default=None)
+    p_plan.add_argument("--posts-per-day", type=int, default=None)
+    p_plan.add_argument("--skip-research", action="store_true", help="Skip X research and use local fallback topics")
+    p_plan.add_argument("--sync-trello", action="store_true")
+    p_plan.add_argument("--sync-notion", action="store_true")
+    p_plan.set_defaults(func=cmd_plan)
+
+    p_generate = sub.add_parser("generate", help="Generate due posts and optionally images, then sync")
+    p_generate.add_argument("--provider", default=None)
+    p_generate.add_argument("--provider-user-id", default=None)
+    p_generate.add_argument("--config-path", default=None, help="Optional runtime config path")
+    p_generate.add_argument("--state-path", default=None, help="Optional state store path")
+    p_generate.add_argument("--brand-profile-path", default=None)
+    p_generate.add_argument("--plan-path", default=None)
+    p_generate.add_argument("--count", type=int, default=None)
+    p_generate.add_argument("--with-image", action="store_true", help="Attempt image generation for selected posts")
+    p_generate.add_argument("--image-model", default=None)
+    p_generate.add_argument("--image-url", default=None, help="Override logo/input image URL or local path")
+    p_generate.add_argument("--sync-trello", action="store_true")
+    p_generate.add_argument("--sync-notion", action="store_true")
+    p_generate.set_defaults(func=cmd_generate)
+
+    p_sync = sub.add_parser("sync", help="Sync stored planned posts to Trello/Notion")
+    p_sync.add_argument("--config-path", default=None, help="Optional runtime config path")
+    p_sync.add_argument("--brand-profile-path", default=None)
+    p_sync.add_argument("--plan-path", default=None)
+    p_sync.add_argument("--target", choices=["trello", "notion", "both"], default="both")
+    p_sync.set_defaults(func=cmd_sync)
+
+    p_status = sub.add_parser("status", help="Show local readiness and queue status")
+    p_status.add_argument("--provider", default=None)
+    p_status.add_argument("--provider-user-id", default=None)
+    p_status.add_argument("--config-path", default=None)
+    p_status.add_argument("--state-path", default=None)
+    p_status.add_argument("--session-db-path", default=None)
+    p_status.add_argument("--plan-path", default=None)
+    p_status.set_defaults(func=cmd_status)
+
     p_reset = sub.add_parser("reset", help="Reset local SociClaw state/config and restart onboarding")
     p_reset.add_argument("--yes", action="store_true", help="Confirm destructive reset")
     p_reset.add_argument("--dry-run", action="store_true", help="Show what would be removed")
@@ -1253,6 +1733,16 @@ def build_parser() -> argparse.ArgumentParser:
     p_topup_start.add_argument("--state-path", default=None, help="Override state store path")
     p_topup_start.add_argument("--session-db-path", default=None, help="Override topup session DB path")
     p_topup_start.set_defaults(func=cmd_topup_start)
+
+    p_pay = sub.add_parser("pay", help="Friendly alias for topup-start using configured provider/user")
+    p_pay.add_argument("--provider", default=None)
+    p_pay.add_argument("--provider-user-id", default=None)
+    p_pay.add_argument("--config-path", default=None)
+    p_pay.add_argument("--state-path", default=None)
+    p_pay.add_argument("--session-db-path", default=None)
+    p_pay.add_argument("--amount-usd", default=5.0, type=float)
+    p_pay.add_argument("--base-url", default=os.getenv("SOCICLAW_IMAGE_API_BASE_URL"), help="Image API base URL")
+    p_pay.set_defaults(func=cmd_pay)
 
     p_topup_claim = sub.add_parser("topup-claim", help="Claim a topup by txHash")
     p_topup_claim.add_argument("--provider", required=True, help="e.g. telegram")
@@ -1276,6 +1766,20 @@ def build_parser() -> argparse.ArgumentParser:
     p_topup_claim.add_argument("--state-path", default=None, help="Override state store path")
     p_topup_claim.add_argument("--session-db-path", default=None, help="Override topup session DB path")
     p_topup_claim.set_defaults(func=cmd_topup_claim)
+
+    p_paid = sub.add_parser("paid", help="Friendly alias for topup-claim using configured provider/user")
+    p_paid.add_argument("--provider", default=None)
+    p_paid.add_argument("--provider-user-id", default=None)
+    p_paid.add_argument("--config-path", default=None)
+    p_paid.add_argument("--state-path", default=None)
+    p_paid.add_argument("--session-db-path", default=None)
+    p_paid.add_argument("--tx-hash", required=True, help="Base tx hash")
+    p_paid.add_argument("--session-id", default=None)
+    p_paid.add_argument("--base-url", default=os.getenv("SOCICLAW_IMAGE_API_BASE_URL"), help="Image API base URL")
+    p_paid.add_argument("--wait", action="store_true")
+    p_paid.add_argument("--wait-timeout-seconds", default=int(os.getenv("SOCICLAW_TOPUP_WAIT_TIMEOUT_SECONDS", "120")), type=int)
+    p_paid.add_argument("--wait-interval-seconds", default=int(os.getenv("SOCICLAW_TOPUP_WAIT_INTERVAL_SECONDS", "5")), type=int)
+    p_paid.set_defaults(func=cmd_paid)
 
     p_topup_status = sub.add_parser("topup-status", help="Get topup session status")
     p_topup_status.add_argument("--provider", required=True, help="e.g. telegram")

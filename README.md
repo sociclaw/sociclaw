@@ -167,6 +167,11 @@ Preflight and Brand Brain:
 .\.venv\Scripts\python.exe -m sociclaw.scripts.cli check-update
 .\.venv\Scripts\python.exe -m sociclaw.scripts.cli self-update --yes
 .\.venv\Scripts\python.exe -m sociclaw.scripts.cli reset --yes
+.\.venv\Scripts\python.exe -m sociclaw.scripts.cli plan --sync-trello
+.\.venv\Scripts\python.exe -m sociclaw.scripts.cli generate --with-image --sync-trello
+.\.venv\Scripts\python.exe -m sociclaw.scripts.cli status
+.\.venv\Scripts\python.exe -m sociclaw.scripts.cli pay --amount-usd 5
+.\.venv\Scripts\python.exe -m sociclaw.scripts.cli paid --tx-hash 0x...
 ```
 
 - `check-env` validates critical env/settings before setup.
@@ -176,6 +181,7 @@ Preflight and Brand Brain:
 - If a past start date is passed, the scheduler clamps to today by default (avoids generating January posts when the user is already in February).
 - Trello sync now includes an internal post marker (`SociClaw-ID`) to avoid duplicate cards on retries.
 - Trello columns are now minimal and dynamic: only the current planning window months are created, stale quarter/month columns are archived, and cards auto-route to the post month list.
+- `generate` now auto-applies logo art direction when a logo/input image is configured and attaches generated images to the corresponding Trello post card.
 
 Topup flow (txHash):
 
