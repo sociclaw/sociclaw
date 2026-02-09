@@ -51,5 +51,7 @@ node_modules/
 *.jpeg
 !templates/*.png
 
+remotion
+
 MASTER_PLAN_SOCICLAW.md
 ROADMAP.md

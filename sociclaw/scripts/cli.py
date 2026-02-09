@@ -22,6 +22,7 @@ import argparse
 import asyncio
 import json
 import os
+import sys
 import time
 from datetime import datetime
 from dataclasses import asdict
@@ -390,7 +391,9 @@ def cmd_setup_wizard(args: argparse.Namespace) -> int:
     store = RuntimeConfigStore(path)
     current = store.load()
 
-    non_interactive = bool(args.non_interactive)
+    # OpenClaw/automation runners typically execute commands without a TTY.
+    # Never block on `input()` in that environment.
+    non_interactive = bool(args.non_interactive) or (not sys.stdin.isatty())
 
     provider = _prompt_or_value(
         args.provider,
@@ -475,7 +478,7 @@ def cmd_setup_wizard(args: argparse.Namespace) -> int:
 def cmd_briefing(args: argparse.Namespace) -> int:
     profile_path = Path(args.path) if args.path else None
     current = load_brand_profile(profile_path)
-    non_interactive = bool(args.non_interactive)
+    non_interactive = bool(args.non_interactive) or (not sys.stdin.isatty())
 
     updated = BrandProfile(
         name=_prompt_or_value(args.name, "Project name", current.name, non_interactive=non_interactive),
@@ -657,14 +660,24 @@ def cmd_generate(args: argparse.Namespace) -> int:
 
     state = StateStore(Path(args.state_path) if args.state_path else None)
     user = state.get_user(provider=provider, provider_user_id=provider_user_id)
-    can_generate_image = bool(user and user.image_api_key and (args.with_image or runtime.brand_logo_url))
+
+    image_model = args.image_model or os.getenv("SOCICLAW_IMAGE_MODEL") or "nano-banana"
+    image_input = args.image_url or runtime.brand_logo_url or None
+    model_requires_input = "nano-banana" in (image_model or "").lower()
+
+    can_generate_image = bool(
+        user
+        and user.image_api_key
+        and bool(args.with_image)
+        and (not model_requires_input or bool(image_input))
+    )
 
     image_generator = None
     if can_generate_image:
         image_generator = ImageGenerator(
             api_key=user.image_api_key,
-            model=args.image_model or os.getenv("SOCICLAW_IMAGE_MODEL") or "nano-banana",
-            image_url=args.image_url or runtime.brand_logo_url or None,
+            model=image_model,
+            image_url=image_input,
             timeout_seconds=int(os.getenv("SOCICLAW_IMAGE_TIMEOUT_SECONDS", "120")),
             poll_interval_seconds=int(os.getenv("SOCICLAW_IMAGE_POLL_INTERVAL_SECONDS", "2")),
             payment_handler=None,
@@ -734,6 +747,21 @@ def cmd_generate(args: argparse.Namespace) -> int:
                 "provider_user_id": provider_user_id,
                 "generated": len(results),
                 "remaining_planned_posts": len(remaining),
+                "image_generation": {
+                    "requested": bool(args.with_image),
+                    "enabled": bool(image_generator),
+                    "model": image_model,
+                    "has_logo_input": bool(image_input),
+                    "skipped_reason": (
+                        "missing_logo_input"
+                        if (bool(args.with_image) and model_requires_input and not image_input)
+                        else (
+                            "missing_api_key"
+                            if (bool(args.with_image) and (not user or not user.image_api_key))
+                            else ("disabled" if not bool(args.with_image) else None)
+                        )
+                    ),
+                },
                 "results": results,
             },
             indent=2,
