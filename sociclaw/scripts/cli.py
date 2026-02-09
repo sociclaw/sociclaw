@@ -26,16 +26,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from .brand_profile import BrandProfile, load_brand_profile, save_brand_profile
+from .brand_profile import BrandProfile, default_brand_profile_path, load_brand_profile, save_brand_profile
 from .content_generator import ContentGenerator
 from .provisioning_client import ProvisioningClient
 from .provisioning_gateway import SociClawProvisioningGatewayClient
 from .image_generator import ImageGenerator
-from .local_session_store import LocalSessionStore
+from .local_session_store import LocalSessionStore, default_db_path
 from .notion_sync import NotionSync
-from .runtime_config import RuntimeConfig, RuntimeConfigStore
+from .runtime_config import RuntimeConfig, RuntimeConfigStore, default_runtime_config_path
 from .scheduler import PostPlan
-from .state_store import StateStore
+from .state_store import StateStore, default_state_path
 from .topup_client import TopupClient
 from .trello_sync import TrelloSync
 from .updater import apply_update, check_for_update
@@ -182,6 +182,53 @@ def cmd_generate_image(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_reset(args: argparse.Namespace) -> int:
+    if not args.yes and not args.dry_run:
+        raise SystemExit("Refusing destructive reset without --yes. Use --dry-run to preview.")
+
+    target_paths = [
+        Path(args.state_path) if args.state_path else default_state_path(),
+        Path(args.config_path) if args.config_path else default_runtime_config_path(),
+        Path(args.session_db_path) if args.session_db_path else default_db_path(),
+        Path(args.brand_profile_path) if args.brand_profile_path else default_brand_profile_path(),
+    ]
+
+    seen = set()
+    unique_paths = []
+    for p in target_paths:
+        key = str(p.resolve()) if p.exists() else str(p)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_paths.append(p)
+
+    results = []
+    had_error = False
+    for path in unique_paths:
+        entry = {
+            "path": str(path),
+            "existed": path.exists(),
+            "removed": False,
+        }
+        if entry["existed"] and not args.dry_run:
+            try:
+                path.unlink()
+                entry["removed"] = True
+            except OSError as exc:
+                had_error = True
+                entry["error"] = str(exc)
+        results.append(entry)
+
+    output = {
+        "reset": not args.dry_run,
+        "dry_run": bool(args.dry_run),
+        "files": results,
+        "next_step": "/sociclaw setup",
+    }
+    print(json.dumps(output, indent=2))
+    return 1 if had_error else 0
+
+
 def _prompt_or_value(
     value: Optional[str],
     prompt_text: str,
@@ -274,7 +321,7 @@ def cmd_setup_wizard(args: argparse.Namespace) -> int:
         ),
         brand_logo_url=_prompt_or_value(
             args.brand_logo_url,
-            "Brand/logo image URL (recommended for nano-banana)",
+            "Brand/logo image URL or local path (recommended for nano-banana)",
             current.brand_logo_url,
             non_interactive=non_interactive,
         ),
@@ -1140,7 +1187,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_img.add_argument("--output-dir", default=None)
     p_img.add_argument("--state-path", default=None)
     p_img.add_argument("--config-path", default=None, help="Optional runtime config path")
-    p_img.add_argument("--image-url", default=None, help="Optional input image URL (required for img2img models)")
+    p_img.add_argument("--image-url", default=None, help="Optional input image URL or local path (required for img2img models)")
     p_img.add_argument("--dry-run", action="store_true", help="Validate preconditions without calling image API")
     p_img.set_defaults(func=cmd_generate_image)
 
@@ -1178,6 +1225,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_setup.add_argument("--timezone", default=None)
     p_setup.add_argument("--non-interactive", action="store_true", help="Do not prompt; keep defaults for missing values")
     p_setup.set_defaults(func=cmd_setup_wizard)
+
+    p_reset = sub.add_parser("reset", help="Reset local SociClaw state/config and restart onboarding")
+    p_reset.add_argument("--yes", action="store_true", help="Confirm destructive reset")
+    p_reset.add_argument("--dry-run", action="store_true", help="Show what would be removed")
+    p_reset.add_argument("--state-path", default=None, help="Optional state store path")
+    p_reset.add_argument("--config-path", default=None, help="Optional runtime config path")
+    p_reset.add_argument("--session-db-path", default=None, help="Optional topup session DB path")
+    p_reset.add_argument("--brand-profile-path", default=None, help="Optional brand profile path")
+    p_reset.set_defaults(func=cmd_reset)
 
     p_check = sub.add_parser("check-env", help="Preflight check for required env/settings")
     p_check.add_argument("--tmp-dir", default=None, help="Optional writable temp directory to validate")

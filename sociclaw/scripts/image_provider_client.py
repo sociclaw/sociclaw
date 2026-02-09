@@ -7,11 +7,15 @@ The underlying provider details are abstracted away from user-facing code.
 
 from __future__ import annotations
 
+import base64
 import logging
+import mimetypes
 import os
 import time
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict, Optional
+from urllib.parse import unquote, urlparse
 
 import requests
 
@@ -75,31 +79,156 @@ class ImageProviderClient:
         user_id: Optional[str] = None,
         extra: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        payload: Dict[str, Any] = {
+        base_payload: Dict[str, Any] = {
             "prompt": prompt,
             "model": model,
         }
         if image_url:
-            payload["image_url"] = image_url
+            base_payload["image_url"] = image_url
         if webhook_url:
-            payload["webhook_url"] = webhook_url
+            base_payload["webhook_url"] = webhook_url
         if user_id:
-            payload["user_id"] = user_id
+            base_payload["user_id"] = user_id
         if extra:
-            payload.update(extra)
+            base_payload.update(extra)
 
-        resp = request_with_retry(
-            session=self.session,
-            method="POST",
-            url=self.generate_url,
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            json=payload,
-            timeout=self.timeout_seconds,
-            max_retries=self.max_retries,
-            backoff_base_seconds=self.backoff_base_seconds,
+        payload_candidates = [base_payload]
+        if image_url:
+            image_data_url = self._resolve_image_data_url(image_url)
+            if image_data_url:
+                payload_with_data_url = dict(base_payload)
+                payload_with_data_url["image_data_url"] = image_data_url
+                payload_candidates.append(payload_with_data_url)
+
+                payload_data_only = dict(base_payload)
+                payload_data_only.pop("image_url", None)
+                payload_data_only["image_data_url"] = image_data_url
+                payload_candidates.append(payload_data_only)
+
+        last_response: Optional[requests.Response] = None
+        for idx, payload in enumerate(payload_candidates):
+            resp = request_with_retry(
+                session=self.session,
+                method="POST",
+                url=self.generate_url,
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                json=payload,
+                timeout=self.timeout_seconds,
+                max_retries=self.max_retries,
+                backoff_base_seconds=self.backoff_base_seconds,
+            )
+            if resp.ok:
+                return resp.json()
+
+            last_response = resp
+            has_fallback = idx < (len(payload_candidates) - 1)
+            if has_fallback and self._should_retry_with_alternate_payload(resp):
+                logger.warning(
+                    "Generate request failed (%s). Retrying with alternate image payload format.",
+                    resp.status_code,
+                )
+                continue
+
+            resp.raise_for_status()
+
+        if last_response is not None:
+            last_response.raise_for_status()
+        raise RuntimeError("Image API create_job failed without response")
+
+    def _should_retry_with_alternate_payload(self, response: requests.Response) -> bool:
+        if response.status_code not in {400, 422}:
+            return False
+        body = (response.text or "").lower()
+        return any(
+            token in body
+            for token in (
+                "image input",
+                "image_url",
+                "image_data_url",
+                "missing image",
+                "requires an image",
+            )
         )
-        resp.raise_for_status()
-        return resp.json()
+
+    def _resolve_image_data_url(self, image_url: str) -> Optional[str]:
+        clean = str(image_url or "").strip()
+        if not clean:
+            return None
+        if clean.startswith("data:image/"):
+            return clean
+
+        local_path = self._resolve_local_path(clean)
+        if local_path and local_path.is_file():
+            try:
+                data = local_path.read_bytes()
+            except OSError:
+                return None
+            return self._build_image_data_url(data, source_hint=str(local_path), content_type_hint=None)
+
+        disable = (os.getenv("SOCICLAW_DISABLE_IMAGE_DATA_URL_FALLBACK") or "").strip().lower()
+        if disable in {"1", "true", "yes", "on"}:
+            return None
+
+        try:
+            resp = request_with_retry(
+                session=self.session,
+                method="GET",
+                url=clean,
+                timeout=self.timeout_seconds,
+                max_retries=1,
+                backoff_base_seconds=self.backoff_base_seconds,
+            )
+            if not resp.ok or not resp.content:
+                return None
+        except requests.RequestException:
+            return None
+
+        content_type = (resp.headers.get("Content-Type", "") or "").split(";")[0].strip().lower()
+        return self._build_image_data_url(resp.content, source_hint=clean, content_type_hint=content_type)
+
+    def _resolve_local_path(self, image_input: str) -> Optional[Path]:
+        value = str(image_input or "").strip()
+        if not value:
+            return None
+
+        if value.lower().startswith("file://"):
+            parsed = urlparse(value)
+            if parsed.scheme != "file":
+                return None
+            file_path = unquote(parsed.path or "")
+            if os.name == "nt" and file_path.startswith("/"):
+                file_path = file_path[1:]
+            return Path(file_path)
+
+        try:
+            candidate = Path(value)
+        except (TypeError, ValueError):
+            return None
+        return candidate
+
+    def _build_image_data_url(
+        self,
+        data: bytes,
+        *,
+        source_hint: str,
+        content_type_hint: Optional[str],
+    ) -> Optional[str]:
+        if not data:
+            return None
+        if len(data) > 10 * 1024 * 1024:
+            logger.warning("Input image too large for data URL fallback (%s bytes)", len(data))
+            return None
+
+        content_type = (content_type_hint or "").split(";")[0].strip().lower()
+        if not content_type.startswith("image/"):
+            guessed, _ = mimetypes.guess_type(source_hint)
+            if guessed and guessed.startswith("image/"):
+                content_type = guessed
+            else:
+                content_type = "image/png"
+
+        encoded = base64.b64encode(data).decode("ascii")
+        return f"data:{content_type};base64,{encoded}"
 
     def get_job(self, job_id: str) -> Dict[str, Any]:
         url = f"{self.jobs_base_url}{job_id}"

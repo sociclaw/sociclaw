@@ -61,10 +61,12 @@ OpenClaw injects per-skill env/config from `openclaw.json`. Example:
 }
 ```
 
-For `nano-banana` (img2img), set a logo/image URL during setup so image generation works without extra prompts:
+For `nano-banana` (img2img), set a logo/image URL or local path during setup so image generation works without extra prompts:
 
 ```bash
 python -m sociclaw.scripts.cli setup-wizard --brand-logo-url "https://yourcdn.com/logo.png"
+# or local file on host:
+python -m sociclaw.scripts.cli setup-wizard --brand-logo-url "/opt/sociclaw/assets/logo.png"
 ```
 
 ## Quick Start (Python)
@@ -164,6 +166,7 @@ Preflight and Brand Brain:
 .\.venv\Scripts\python.exe -m sociclaw.scripts.cli trello-normalize --board-id <trello_board_id>
 .\.venv\Scripts\python.exe -m sociclaw.scripts.cli check-update
 .\.venv\Scripts\python.exe -m sociclaw.scripts.cli self-update --yes
+.\.venv\Scripts\python.exe -m sociclaw.scripts.cli reset --yes
 ```
 
 - `check-env` validates critical env/settings before setup.

@@ -48,7 +48,7 @@ Planning Rules:
 
 Brand Brain:
 - Before generating volume, collect and apply: audience, value proposition, tone, required keywords, forbidden terms, content language, and optional brand document.
-- For `nano-banana` image generation, require a logo/input image URL from setup or per request.
+- For `nano-banana` image generation, require a logo/input image URL or local path from setup or per request.
 
 Analysis Mode:
 - For each user request, classify the primary objective (engagement, authority, traffic, conversion).
@@ -92,6 +92,9 @@ Claim topup after transfer confirmation.
 
 ### `/sociclaw update`
 Maintenance command pattern: check/apply latest skill update on host (mapped to CLI `check-update` / `self-update`).
+
+### `/sociclaw reset`
+Factory reset local runtime state (config, local session DB, local brand profile, local provisioned user state). Requires explicit confirmation.
 
 ## Image Generation (SociClaw API)
 ### Provisioning (Recommended)
