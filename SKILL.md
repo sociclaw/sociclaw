@@ -4,7 +4,7 @@ description: "An autonomous social media manager agent that researches, plans, a
 homepage: https://sociclaw.com
 user-invocable: true
 disable-model-invocation: false
-metadata: {"version":"0.1.0","tags":["social-media","x","twitter","automation","content","image-api","trello","notion","credits"]}
+metadata: {"version":"0.1.1","tags":["social-media","x","twitter","automation","content","image-api","trello","notion","credits"]}
 ---
 # SociClaw Skill
 
