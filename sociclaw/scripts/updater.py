@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -105,6 +106,7 @@ def apply_update(
     remote: str = "origin",
     branch: str = "main",
     allow_dirty: bool = False,
+    auto_stash: bool = False,
     install_requirements: bool = True,
     python_bin: Optional[str] = None,
 ) -> dict:
@@ -129,16 +131,34 @@ def apply_update(
             "allowed_remote": allowed_remote,
         }
 
+    auto_stashed = False
+    stash_message = None
     if not allow_dirty:
         status = _run(["git", "status", "--porcelain"], repo_dir)
         if status.returncode != 0:
             return {"ok": False, "error": "Unable to read git status", "repo_dir": str(repo_dir)}
-        if _stdout(status):
-            return {
-                "ok": False,
-                "error": "Working tree is dirty; refusing self-update",
-                "repo_dir": str(repo_dir),
-            }
+        is_dirty = bool(_stdout(status))
+        if is_dirty:
+            if not auto_stash:
+                return {
+                    "ok": False,
+                    "error": "Working tree is dirty; refusing self-update",
+                    "repo_dir": str(repo_dir),
+                }
+
+            current_branch = _stdout(_run(["git", "rev-parse", "--abbrev-ref", "HEAD"], repo_dir)) or "unknown"
+            ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            stash_message = f"sociclaw-auto-stash {ts} {current_branch}->{branch}"
+            stash = _run(["git", "stash", "push", "-u", "-m", stash_message], repo_dir)
+            if stash.returncode != 0:
+                return {
+                    "ok": False,
+                    "error": "Working tree is dirty and auto-stash failed",
+                    "repo_dir": str(repo_dir),
+                    "detail": (stash.stderr or stash.stdout or "").strip(),
+                }
+            stash_out = f"{stash.stdout or ''} {stash.stderr or ''}".lower()
+            auto_stashed = "no local changes to save" not in stash_out
 
     checkout = _run(["git", "checkout", branch], repo_dir)
     if checkout.returncode != 0:
@@ -172,6 +192,8 @@ def apply_update(
         "remote": remote,
         "branch": branch,
         "remote_url": remote_url,
+        "auto_stashed": auto_stashed,
+        "stash_message": stash_message,
         "install_requirements": bool(install_requirements),
         "install_result": install_result,
         "restart_required": True,

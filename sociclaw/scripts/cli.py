@@ -1514,6 +1514,7 @@ def cmd_self_update(args: argparse.Namespace) -> int:
         remote=args.remote,
         branch=args.branch,
         allow_dirty=bool(args.allow_dirty),
+        auto_stash=bool(args.auto_stash),
         install_requirements=not bool(args.skip_pip),
         python_bin=args.python_bin,
     )
@@ -1862,6 +1863,19 @@ def build_parser() -> argparse.ArgumentParser:
     p_self_update.add_argument("--branch", default="main")
     p_self_update.add_argument("--yes", action="store_true", help="Apply update without confirmation block")
     p_self_update.add_argument("--allow-dirty", action="store_true", help="Allow update with dirty worktree")
+    p_self_update.add_argument(
+        "--auto-stash",
+        dest="auto_stash",
+        action="store_true",
+        default=True,
+        help="Auto-stash untracked/dirty changes before update (default on)",
+    )
+    p_self_update.add_argument(
+        "--no-auto-stash",
+        dest="auto_stash",
+        action="store_false",
+        help="Disable auto-stash and fail on dirty worktree",
+    )
     p_self_update.add_argument("--skip-pip", action="store_true", help="Skip pip install -r requirements.txt")
     p_self_update.add_argument("--python-bin", default=None, help="Python interpreter for pip install")
     p_self_update.set_defaults(func=cmd_self_update)

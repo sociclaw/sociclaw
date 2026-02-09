@@ -78,6 +78,42 @@ def test_apply_update_success_skip_pip(monkeypatch, tmp_path):
     assert result["restart_required"] is True
 
 
+def test_apply_update_dirty_auto_stash(monkeypatch, tmp_path):
+    monkeypatch.setattr(updater, "is_git_repo", lambda _: True)
+
+    calls = {"stash": 0}
+
+    def fake_run(cmd, cwd):
+        key = " ".join(cmd)
+        if key == "git remote get-url origin":
+            return DummyProc(stdout="git@github.com:sociclaw/sociclaw.git")
+        if key == "git status --porcelain":
+            return DummyProc(stdout="?? new.file")
+        if key == "git rev-parse --abbrev-ref HEAD":
+            return DummyProc(stdout="fix/custom\n")
+        if key.startswith("git stash push -u -m sociclaw-auto-stash "):
+            calls["stash"] += 1
+            return DummyProc(stdout="Saved working directory and index state")
+        if key == "git checkout main":
+            return DummyProc(stdout="")
+        if key == "git pull --ff-only origin main":
+            return DummyProc(stdout="updated")
+        return DummyProc(stdout="")
+
+    monkeypatch.setattr(updater, "_run", fake_run)
+    result = updater.apply_update(
+        tmp_path,
+        remote="origin",
+        branch="main",
+        allow_dirty=False,
+        auto_stash=True,
+        install_requirements=False,
+    )
+    assert result["ok"] is True
+    assert result["auto_stashed"] is True
+    assert calls["stash"] == 1
+
+
 def test_cli_self_update_requires_yes(monkeypatch, tmp_path, capsys):
     from sociclaw.scripts import cli
 

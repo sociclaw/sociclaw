@@ -207,6 +207,8 @@ python -m sociclaw.scripts.cli self-update --yes || true
 
 If update succeeded, restart your bot process/service.  
 Recommended policy: run every 6-12 hours with `git pull --ff-only` (already enforced by `self-update`).
+`self-update` now auto-stashes dirty/untracked files by default to avoid failing updates on active bots.
+Use `--no-auto-stash` if you want strict fail-on-dirty behavior.
 
 ## Telegram Topup (txHash)
 
