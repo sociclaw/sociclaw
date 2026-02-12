@@ -40,6 +40,7 @@ from .notion_sync import NotionSync
 from .runtime_config import RuntimeConfig, RuntimeConfigStore, default_runtime_config_path
 from .scheduler import PostPlan, QuarterlyScheduler
 from .state_store import StateStore, default_state_path
+from .memory_store import SociClawMemoryStore, default_memory_db_path
 from .topup_client import TopupClient
 from .trello_sync import TrelloSync
 from .updater import apply_update, check_for_update
@@ -297,11 +298,13 @@ def cmd_reset(args: argparse.Namespace) -> int:
     if not args.yes and not args.dry_run:
         raise SystemExit("Refusing destructive reset without --yes. Use --dry-run to preview.")
 
+    memory_db_path = getattr(args, "memory_db_path", None)
     target_paths = [
         Path(args.state_path) if args.state_path else default_state_path(),
         Path(args.config_path) if args.config_path else default_runtime_config_path(),
         Path(args.session_db_path) if args.session_db_path else default_db_path(),
         Path(args.brand_profile_path) if args.brand_profile_path else default_brand_profile_path(),
+        Path(memory_db_path) if memory_db_path else default_memory_db_path(),
     ]
 
     seen = set()
@@ -557,6 +560,8 @@ def cmd_plan(args: argparse.Namespace) -> int:
     runtime_store = RuntimeConfigStore(Path(args.config_path) if args.config_path else None)
     runtime = runtime_store.load()
     provider, provider_user_id = _resolve_identity_from_runtime(args, runtime)
+    memory_db_path = getattr(args, "memory_db_path", None)
+    memory_store = SociClawMemoryStore(Path(memory_db_path) if memory_db_path else None)
 
     if args.days is not None:
         days = max(1, int(args.days))
@@ -583,6 +588,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
             trend_data.sample_posts = [{"error": f"research_fallback: {exc}"}]
 
     scheduler = QuarterlyScheduler()
+    avoid_topics = memory_store.get_recent_topics(provider=provider, provider_user_id=provider_user_id, limit=40)
     start_date = datetime.utcnow()
     plans = scheduler.generate_quarterly_plan(
         trend_data,
@@ -590,6 +596,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
         days=days,
         posts_per_day=posts_per_day,
         starter_mode=False,
+        avoid_topics=avoid_topics,
     )
     generator = ContentGenerator(brand_profile_path=Path(args.brand_profile_path) if args.brand_profile_path else None)
     posts = generator.generate_batch(plans)
@@ -660,6 +667,8 @@ def cmd_generate(args: argparse.Namespace) -> int:
 
     state = StateStore(Path(args.state_path) if args.state_path else None)
     user = state.get_user(provider=provider, provider_user_id=provider_user_id)
+    memory_db_path = getattr(args, "memory_db_path", None)
+    memory = SociClawMemoryStore(Path(memory_db_path) if memory_db_path else None)
 
     image_model = args.image_model or os.getenv("SOCICLAW_IMAGE_MODEL") or "nano-banana"
     image_input = args.image_url or runtime.brand_logo_url or None
@@ -692,6 +701,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
         notion = NotionSync()
 
     results = []
+    last_entry_id: Optional[int] = None
     for post_data in selected:
         generated_post = _generated_post_from_dict(post_data)
         if not generated_post.text:
@@ -710,6 +720,23 @@ def cmd_generate(args: argparse.Namespace) -> int:
                 directed_prompt,
                 user_address=f"{provider}:{provider_user_id}",
             )
+        post_topic = str(post_data.get("topic") or runtime.user_niche or "SociClaw")
+        post_category = str(post_data.get("category") or generated_post.category or "tips")
+        try:
+            post_date = str(post_data.get("date") or generated_post.date or datetime.utcnow().strftime("%Y-%m-%d"))
+        except Exception:
+            post_date = datetime.utcnow().strftime("%Y-%m-%d")
+        last_entry_id = memory.upsert_generation(
+            provider=provider,
+            provider_user_id=provider_user_id,
+            category=post_category,
+            topic=post_topic,
+            text=generated_post.text,
+            post_date=post_date,
+            has_image=bool(image_result),
+            with_logo=bool(image_input),
+            image_url=(image_result.url if image_result else None),
+        )
 
         card_id = None
         if trello:
@@ -763,6 +790,10 @@ def cmd_generate(args: argparse.Namespace) -> int:
                     ),
                 },
                 "results": results,
+                "memory": {
+                    "last_entry_id": last_entry_id,
+                    "memory_enabled": True,
+                },
             },
             indent=2,
         )
@@ -1706,6 +1737,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_plan.add_argument("--days", type=int, default=None)
     p_plan.add_argument("--posts-per-day", type=int, default=None)
     p_plan.add_argument("--skip-research", action="store_true", help="Skip X research and use local fallback topics")
+    p_plan.add_argument("--memory-db-path", default=None, help="Optional persistent memory DB path")
     p_plan.add_argument("--sync-trello", action="store_true")
     p_plan.add_argument("--sync-notion", action="store_true")
     p_plan.set_defaults(func=cmd_plan)
@@ -1722,6 +1754,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_generate.add_argument("--no-image", dest="with_image", action="store_false", help="Skip image generation")
     p_generate.add_argument("--image-model", default=None)
     p_generate.add_argument("--image-url", default=None, help="Override logo/input image URL or local path")
+    p_generate.add_argument("--memory-db-path", default=None, help="Optional persistent memory DB path")
     p_generate.add_argument("--sync-trello", action="store_true")
     p_generate.add_argument("--sync-notion", action="store_true")
     p_generate.set_defaults(func=cmd_generate)
@@ -1749,6 +1782,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_reset.add_argument("--config-path", default=None, help="Optional runtime config path")
     p_reset.add_argument("--session-db-path", default=None, help="Optional topup session DB path")
     p_reset.add_argument("--brand-profile-path", default=None, help="Optional brand profile path")
+    p_reset.add_argument("--memory-db-path", default=None, help="Optional persistent memory DB path")
     p_reset.set_defaults(func=cmd_reset)
 
     p_check = sub.add_parser("check-env", help="Preflight check for required env/settings")

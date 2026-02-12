@@ -70,6 +70,22 @@ def test_quarterly_scheduler():
     assert all(isinstance(plan, PostPlan) for plan in plans)
 
 
+def test_quarterly_scheduler_avoids_recent_topics():
+    scheduler = QuarterlyScheduler()
+    trend_data = MagicMock()
+    trend_data.peak_hours = [13, 17, 21]
+    trend_data.topics = ["Bitcoin", "Ethereum", "DeFi"]
+    trend_data.hashtags = ["Crypto", "Web3", "Blockchain"]
+
+    plans = scheduler.generate_quarterly_plan(
+        trend_data,
+        days=1,
+        posts_per_day=3,
+        avoid_topics=["Bitcoin", "Ethereum"],
+    )
+
+    assert len(plans) == 3
+    assert all(plan.topic == "DeFi" for plan in plans)
 def test_quarterly_scheduler_clamps_past_start_date_to_today(monkeypatch):
     monkeypatch.delenv("SOCICLAW_ALLOW_PAST_PLAN_START", raising=False)
     scheduler = QuarterlyScheduler()

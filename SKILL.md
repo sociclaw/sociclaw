@@ -4,7 +4,7 @@ description: "An autonomous social media manager agent that researches, plans, a
 homepage: https://sociclaw.com
 user-invocable: true
 disable-model-invocation: false
-metadata: {"version":"0.1.1","tags":["social-media","x","twitter","automation","content","image-api","trello","notion","credits"]}
+metadata: {"version":"0.1.2","tags":["social-media","x","twitter","automation","content","image-api","trello","notion","credits","persistent-memory"]}
 ---
 # SociClaw Skill
 
@@ -171,6 +171,7 @@ Generate a starter plan by default (14 days x 1 post/day). Use full quarter mode
 
 ### `/sociclaw generate`
 Generate today's posts (text + image prompt + image) and attach results to Trello/Notion.
+Each generated post is persisted to local persistent memory (`.sociclaw/memory.db`) so future planning can avoid repetitive topics.
 
 ### `/sociclaw sync`
 Force a sync to Trello/Notion.
@@ -188,7 +189,7 @@ Claim topup after transfer confirmation.
 Maintenance command pattern: check/apply latest skill update on host (mapped to CLI `check-update` / `self-update`).
 
 ### `/sociclaw reset`
-Factory reset local runtime state (config, local session DB, local brand profile, local provisioned user state). Requires explicit confirmation.
+Factory reset local runtime state (config, local session DB, local brand profile, local provisioned user state, persistent memory DB). Requires explicit confirmation.
 
 ## Image Generation (SociClaw API)
 ### Provisioning (Recommended)

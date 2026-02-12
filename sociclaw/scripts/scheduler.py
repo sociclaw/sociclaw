@@ -81,6 +81,7 @@ class QuarterlyScheduler:
         days: Optional[int] = None,
         posts_per_day: Optional[int] = None,
         starter_mode: bool = True,
+        avoid_topics: Optional[List[str]] = None,
     ) -> List[PostPlan]:
         """
         Generate a content plan.
@@ -154,7 +155,11 @@ class QuarterlyScheduler:
                 post_time = peak_hours[time_index]
 
                 # Select topic (cycle through pool)
-                topic = topics_pool[post_index % len(topics_pool)]
+                topic = self._pick_topic(
+                    topics_pool=topics_pool,
+                    post_index=post_index,
+                    avoid_topics=avoid_topics,
+                )
 
                 # Select hashtags (3-5 random hashtags)
                 num_hashtags = random.randint(3, 5)
@@ -181,6 +186,28 @@ class QuarterlyScheduler:
 
         logger.info(f"Generated {len(post_plans)} posts for quarterly plan")
         return post_plans
+
+    def _pick_topic(
+        self,
+        topics_pool: List[str],
+        post_index: int,
+        avoid_topics: Optional[List[str]] = None,
+    ) -> str:
+        if not topics_pool:
+            return "SociClaw update"
+
+        if not avoid_topics:
+            return topics_pool[post_index % len(topics_pool)]
+
+        avoid = {t.strip().lower() for t in avoid_topics if t.strip()}
+        base_index = post_index % len(topics_pool)
+        for offset in range(len(topics_pool)):
+            idx = (base_index + offset) % len(topics_pool)
+            topic = topics_pool[idx]
+            if topic.strip().lower() not in avoid:
+                return topic
+
+        return topics_pool[base_index]
 
     def _determine_peak_hours(self, trend_data: TrendData) -> List[int]:
         """
