@@ -393,12 +393,14 @@ class ContentGenerator:
         if "structure" in template:
             base_text = template["structure"]
 
+            # Personality-aware replacement bank.
+            persona = self._persona_profile()
             replacements = {
                 "topic": plan.topic,
                 "insight": random.choice(
                     [
-                        "a high-signal setup worth watching",
-                        "a practical angle you can act on",
+                        f"a high-signal setup from a {persona['tone_modifier']} lens",
+                        "a practical angle you can act on now",
                         "an overlooked lever with asymmetric upside",
                     ]
                 ),
@@ -426,7 +428,7 @@ class ContentGenerator:
                 "opening": "Start with the core concept",
                 "key_point": "Focus on risk management",
                 "setup": plan.topic,
-                "punchline": "Classic crypto move",
+                "punchline": random.choice(persona["punchlines"]),
                 "scenario": plan.topic,
                 "explanation": "Keep it simple and consistent",
                 "key_takeaway": "Safety and patience win",
@@ -480,11 +482,55 @@ class ContentGenerator:
                 f"Category: {plan.category}"
             )
 
+        persona = self._persona_profile()
+        if persona["signature_opener"]:
+            details = f"{details}\nOpening Style: {persona['signature_opener']}"
+        if persona["visual_style"]:
+            details = f"{details}\nVisual Style: {persona['visual_style']}"
+        if persona["traits"]:
+            details = f"{details}\nPersonality Traits: {', '.join(persona['traits'])}"
+        if persona["goals"]:
+            details = f"{details}\nContent Goals: {', '.join(persona['goals'])}"
+
+        if cta_style := persona["cta_style"]:
+            text = self._enforce_cta_style(text, str(cta_style))
+
         return {
             "title": title.strip(),
             "body": body.strip(),
             "text": text.strip(),
             "details": details.strip(),
+        }
+
+    def _enforce_cta_style(self, text: str, style: str) -> str:
+        if style not in {"question", "invitation", "challenge"}:
+            return text
+        if style == "question":
+            if "?" not in text:
+                return f"{text} What is your move?"
+            return text
+        if style == "invitation":
+            if "dm" not in text.lower() and "comment" not in text.lower():
+                return f"{text} Tell me what worked for you and I will DM a practical checklist."
+            return text
+        return f"{text} If you disagree, tell me where it breaks."
+
+    def _persona_profile(self) -> Dict[str, object]:
+        """Build a compact, normalized persona payload from brand profile data."""
+        profile = self.brand_profile
+        signature_openers = [s for s in profile.signature_openers if s.strip()]
+        return {
+            "traits": [t for t in profile.personality_traits if t.strip()],
+            "goals": [g for g in profile.content_goals if g.strip()],
+            "signature_opener": random.choice(signature_openers) if signature_openers else "",
+            "visual_style": profile.visual_style or "",
+            "cta_style": profile.cta_style or "question",
+            "punchlines": [
+                "Execution quality compounds, not hype.",
+                "Consistency beats perfect timing every single week.",
+                "Small process upgrades beat loud intentions.",
+            ],
+            "tone_modifier": profile.voice_tone.strip() if profile.voice_tone else "practical",
         }
 
     def _resolve_content_language(self) -> str:
@@ -564,18 +610,25 @@ class ContentGenerator:
         Returns:
             Image generation prompt string
         """
-        # Base style for crypto/web3 content
+        # Base style for crypto/web3 content, enriched with the brand profile.
         base_style = "modern, professional, crypto themed, vibrant colors"
+        persona = self._persona_profile()
+        style_hints = [base_style]
+        if persona["tone_modifier"]:
+            style_hints.append(f"tone: {persona['tone_modifier']}")
+        if persona["visual_style"]:
+            style_hints.append(persona["visual_style"])
+        base_style_with_profile = ", ".join(style_hints)
 
         # Category-specific visual styles
         category_styles = {
-            "market_analysis": f"financial chart, {base_style}, data visualization",
-            "educational": f"infographic style, {base_style}, clean layout",
-            "news": f"breaking news style, {base_style}, bold typography",
-            "tips": f"minimalist design, {base_style}, icon-based",
-            "opinion": f"bold statement, {base_style}, striking visuals",
-            "thread": f"thread visualization, {base_style}, numbered layout",
-            "meme": f"meme style, {base_style}, humorous, relatable"
+            "market_analysis": f"financial chart, {base_style_with_profile}, data visualization",
+            "educational": f"infographic style, {base_style_with_profile}, clean layout",
+            "news": f"breaking news style, {base_style_with_profile}, bold typography",
+            "tips": f"minimalist design, {base_style_with_profile}, icon-based",
+            "opinion": f"bold statement, {base_style_with_profile}, striking visuals",
+            "thread": f"thread visualization, {base_style_with_profile}, numbered layout",
+            "meme": f"meme style, {base_style_with_profile}, humorous, relatable"
         }
 
         style = category_styles.get(plan.category, base_style)

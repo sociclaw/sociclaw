@@ -1,6 +1,0 @@
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "mkdir -p .vercel-static && printf 'SociClaw API is running\\n' > .vercel-static/index.html",
-  "installCommand": "echo \"No install step required\"",
-  "outputDirectory": ".vercel-static"
-}

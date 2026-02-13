@@ -24,6 +24,11 @@ class BrandProfile:
     key_themes: List[str] = field(default_factory=list)
     do_not_say: List[str] = field(default_factory=list)
     keywords: List[str] = field(default_factory=list)
+    personality_traits: List[str] = field(default_factory=list)
+    visual_style: str = ""
+    signature_openers: List[str] = field(default_factory=list)
+    content_goals: List[str] = field(default_factory=list)
+    cta_style: str = "question"
     has_brand_document: bool = False
     brand_document_path: str = ""
 
@@ -77,6 +82,19 @@ def load_brand_profile(path: Optional[Path] = None) -> BrandProfile:
             elif label == "keywords":
                 profile.keywords = _parse_inline_list(value)
                 current_list_key = "keywords"
+            elif label == "personality traits":
+                profile.personality_traits = _parse_inline_list(value)
+                current_list_key = "personality_traits"
+            elif label == "visual style":
+                profile.visual_style = value
+            elif label == "signature openers":
+                profile.signature_openers = _parse_inline_list(value)
+                current_list_key = "signature_openers"
+            elif label == "content goals":
+                profile.content_goals = _parse_inline_list(value)
+                current_list_key = "content_goals"
+            elif label == "cta style":
+                profile.cta_style = value or profile.cta_style
             elif label == "has brand document":
                 profile.has_brand_document = value.lower() in {"yes", "true", "1", "y"}
             elif label == "brand document path":
@@ -90,6 +108,9 @@ def load_brand_profile(path: Optional[Path] = None) -> BrandProfile:
     profile.key_themes = _dedupe(profile.key_themes)
     profile.do_not_say = _dedupe(profile.do_not_say)
     profile.keywords = _dedupe(profile.keywords)
+    profile.personality_traits = _dedupe(profile.personality_traits)
+    profile.signature_openers = _dedupe(profile.signature_openers)
+    profile.content_goals = _dedupe(profile.content_goals)
     return profile
 
 
@@ -114,6 +135,11 @@ def save_brand_profile(profile: BrandProfile, path: Optional[Path] = None) -> Pa
         "## Constraints",
         f"- **Do Not Say:** {', '.join(profile.do_not_say)}",
         f"- **Keywords:** {', '.join(profile.keywords)}",
+        f"- **Personality Traits:** {', '.join(profile.personality_traits)}",
+        f"- **Visual Style:** {profile.visual_style}",
+        f"- **Signature Openers:** {', '.join(profile.signature_openers)}",
+        f"- **Content Goals:** {', '.join(profile.content_goals)}",
+        f"- **CTA Style:** {profile.cta_style}",
         f"- **Has Brand Document:** {'yes' if profile.has_brand_document else 'no'}",
         f"- **Brand Document Path:** {profile.brand_document_path}",
         "",

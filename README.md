@@ -1,5 +1,7 @@
 ﻿# SociClaw
 
+[![CI](https://github.com/sociclaw/sociclaw/actions/workflows/ci.yml/badge.svg)](https://github.com/sociclaw/sociclaw/actions/workflows/ci.yml)
+
 SociClaw is an OpenClaw skill that helps teams produce X/Twitter content automatically:
 
 - discovers trending topics
@@ -169,3 +171,4 @@ If your bot has local changes, `self-update` auto-stashes untracked/dirty files 
 - `SPEC.md` (architecture notes)
 - `ROADMAP.md` (future roadmap)
 - `CREATHOON_QA_CHECKLIST.md` (integration test playbook)
+

@@ -487,6 +487,31 @@ def cmd_briefing(args: argparse.Namespace) -> int:
         name=_prompt_or_value(args.name, "Project name", current.name, non_interactive=non_interactive),
         slogan=_prompt_or_value(args.slogan, "Slogan", current.slogan, non_interactive=non_interactive),
         voice_tone=_prompt_or_value(args.voice_tone, "Voice/Tone", current.voice_tone, non_interactive=non_interactive),
+        personality_traits=_prompt_list_or_value(
+            args.personality_traits,
+            "Personality traits (comma-separated)",
+            current.personality_traits,
+            non_interactive=non_interactive,
+        ),
+        visual_style=_prompt_or_value(
+            args.visual_style,
+            "Visual identity style",
+            current.visual_style,
+            non_interactive=non_interactive,
+        ),
+        signature_openers=_prompt_list_or_value(
+            args.signature_openers,
+            "Signature openers (comma-separated)",
+            current.signature_openers,
+            non_interactive=non_interactive,
+        ),
+        content_goals=_prompt_list_or_value(
+            args.content_goals,
+            "Content goals (comma-separated)",
+            current.content_goals,
+            non_interactive=non_interactive,
+        ),
+        cta_style=_prompt_or_value(args.cta_style, "CTA style (question, invitation, challenge)", current.cta_style, non_interactive=non_interactive),
         target_audience=_prompt_or_value(
             args.target_audience,
             "Target audience",
@@ -1692,6 +1717,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_brief.add_argument("--name", default=None)
     p_brief.add_argument("--slogan", default=None)
     p_brief.add_argument("--voice-tone", default=None)
+    p_brief.add_argument("--personality-traits", default=None, help="Comma-separated list")
+    p_brief.add_argument("--visual-style", default=None)
+    p_brief.add_argument("--signature-openers", default=None, help="Comma-separated list of preferred opening phrases")
+    p_brief.add_argument("--content-goals", default=None, help="Comma-separated list of outcomes this account should drive")
+    p_brief.add_argument("--cta-style", default=None, help="Default CTA style: question|invitation|challenge")
     p_brief.add_argument("--target-audience", default=None)
     p_brief.add_argument("--value-proposition", default=None)
     p_brief.add_argument("--key-themes", default=None, help="Comma-separated list")

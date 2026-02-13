@@ -10,6 +10,14 @@ venv/
 *.egg-info/
 dist/
 build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.tox/
+.nox/
+htmlcov/
+.coverage
+coverage.xml
 
 # Environment
 .env
@@ -22,22 +30,23 @@ build/
 .claude/
 *.swp
 *.swo
+*.iml
 
 # OS
 .DS_Store
 Thumbs.db
-nul
 
 # Local scratch
 .tmp/
-.pytest_cache/
 .sociclaw/
 *.db
+*.sqlite
+*.sqlite3
+*.log
 
 # Ralph (cloned repo, not scripts/ralph)
 /ralph/
 .ralph/
-*.log
 
 # Node (for smart contract)
 node_modules/
@@ -55,3 +64,18 @@ remotion
 
 MASTER_PLAN_SOCICLAW.md
 ROADMAP.md
+
+# Vercel
+.vercel/
+
+# Secrets / keys (never commit)
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Internal notes (keep local, not in public repo)
+docs/internal/
+CREATHOON_QA_CHECKLIST.md
+RELEASE_CHECKLIST.md
+SPEC.md
