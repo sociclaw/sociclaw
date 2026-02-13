@@ -39,6 +39,7 @@ Thumbs.db
 # Local scratch
 .tmp/
 .sociclaw/
+sociclaw-clawhub.zip
 *.db
 *.sqlite
 *.sqlite3
