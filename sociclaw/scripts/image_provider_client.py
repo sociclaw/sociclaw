@@ -8,6 +8,7 @@ The underlying provider details are abstracted away from user-facing code.
 from __future__ import annotations
 
 import base64
+import ipaddress
 import logging
 import mimetypes
 import os
@@ -73,6 +74,8 @@ class ImageProviderClient:
             in {"1", "true", "yes", "on"}
         )
         self.allowed_input_roots = self._resolve_allowed_roots()
+        self.allowed_url_hosts = self._resolve_allowed_url_hosts()
+        self.max_remote_redirects = int(os.getenv("SOCICLAW_IMAGE_URL_MAX_REDIRECTS", "3"))
         self.session = session or requests.Session()
 
     def create_job(
@@ -182,26 +185,20 @@ class ImageProviderClient:
         if disable in {"1", "true", "yes", "on"}:
             return None
 
-        try:
-            resp = request_with_retry(
-                session=self.session,
-                method="GET",
-                url=clean,
-                timeout=self.timeout_seconds,
-                max_retries=1,
-                backoff_base_seconds=self.backoff_base_seconds,
-            )
-            if not resp.ok or not resp.content:
-                return None
-        except requests.RequestException:
+        if not self._is_allowed_remote_image_url(clean):
             return None
 
-        content_type = (resp.headers.get("Content-Type", "") or "").split(";")[0].strip().lower()
-        if not content_type.startswith("image/"):
-            content_type = self._guess_image_content_type(resp.content, source_hint=clean, header_hint=content_type) or content_type
-            if not content_type:
+        data, content_type, final_url = self._fetch_remote_image_bytes(clean)
+        if not data:
+            return None
+
+        ct = (content_type or "").strip().lower()
+        if not ct.startswith("image/"):
+            ct = self._guess_image_content_type(data, source_hint=final_url or clean, header_hint=ct) or ct
+            if not ct:
                 return None
-        return self._build_image_data_url(resp.content, source_hint=clean, content_type_hint=content_type)
+
+        return self._build_image_data_url(data, source_hint=final_url or clean, content_type_hint=ct)
 
     def _resolve_local_path(self, image_input: str) -> Optional[Path]:
         value = str(image_input or "").strip()
@@ -247,7 +244,7 @@ class ImageProviderClient:
     def _resolve_allowed_roots(self) -> list[Path]:
         configured = os.getenv("SOCICLAW_ALLOWED_IMAGE_INPUT_DIRS")
         base = Path.cwd().resolve()
-        candidate_roots: list[Path] = [base / ".sociclaw", base / ".tmp", base]
+        candidate_roots: list[Path] = [base / ".sociclaw", base / ".tmp"]
         if configured:
             candidate_roots = []
             for item in configured.split(","):
@@ -268,6 +265,115 @@ class ImageProviderClient:
             if root not in unique:
                 unique.append(root)
         return unique
+
+    def _resolve_allowed_url_hosts(self) -> list[str]:
+        raw = (os.getenv("SOCICLAW_ALLOWED_IMAGE_URL_HOSTS") or "").strip()
+        if not raw:
+            return []
+        items = []
+        for item in raw.split(","):
+            v = item.strip().lower().rstrip(".")
+            if not v:
+                continue
+            items.append(v)
+        unique: list[str] = []
+        for v in items:
+            if v not in unique:
+                unique.append(v)
+        return unique
+
+    def _host_matches_allowlist(self, host: str) -> bool:
+        normalized = (host or "").strip().lower().rstrip(".")
+        if not normalized or not self.allowed_url_hosts:
+            return False
+        for pattern in self.allowed_url_hosts:
+            if pattern == "*":
+                return True
+            if pattern.startswith("*."):
+                base = pattern[2:]
+                if normalized == base or normalized.endswith("." + base):
+                    return True
+                continue
+            if normalized == pattern:
+                return True
+        return False
+
+    def _is_allowed_remote_image_url(self, url: str) -> bool:
+        try:
+            parsed = urlparse(url)
+        except Exception:
+            return False
+
+        scheme = (parsed.scheme or "").lower()
+        if scheme != "https":
+            return False
+
+        host = (parsed.hostname or "").strip().lower().rstrip(".")
+        if not host:
+            return False
+        if host in {"localhost", "0.0.0.0"} or host.endswith(".local"):
+            return False
+
+        # If host is an IP literal, block private/link-local/etc.
+        try:
+            ip = ipaddress.ip_address(host)
+            if (
+                ip.is_private
+                or ip.is_loopback
+                or ip.is_link_local
+                or ip.is_reserved
+                or ip.is_multicast
+                or ip.is_unspecified
+            ):
+                return False
+        except ValueError:
+            pass
+
+        # Remote URL fetch is an explicit opt-in AND requires an explicit host allowlist.
+        if not self._host_matches_allowlist(host):
+            logger.warning("Blocked remote image URL host not in allowlist: %s", host)
+            return False
+
+        return True
+
+    def _fetch_remote_image_bytes(self, url: str) -> tuple[bytes, Optional[str], Optional[str]]:
+        try:
+            with self.session.get(
+                url,
+                timeout=self.timeout_seconds,
+                stream=True,
+                allow_redirects=True,
+                headers={"Accept": "image/*"},
+            ) as resp:
+                if not resp.ok:
+                    return b"", None, None
+
+                if resp.history and len(resp.history) > self.max_remote_redirects:
+                    logger.warning("Blocked remote image URL with too many redirects (%s)", len(resp.history))
+                    return b"", None, None
+
+                final_url = resp.url or url
+                if final_url != url and not self._is_allowed_remote_image_url(final_url):
+                    logger.warning("Blocked remote image URL after redirect to disallowed host")
+                    return b"", None, None
+
+                content_type = (resp.headers.get("Content-Type", "") or "").split(";", 1)[0].strip().lower() or None
+
+                total = 0
+                chunks: list[bytes] = []
+                for chunk in resp.iter_content(chunk_size=64 * 1024):
+                    if not chunk:
+                        continue
+                    total += len(chunk)
+                    if total > self.max_payload_bytes:
+                        logger.warning("Remote image too large for data URL fallback (%s bytes)", total)
+                        return b"", None, None
+                    chunks.append(chunk)
+
+                data = b"".join(chunks)
+                return data, content_type, final_url
+        except requests.RequestException:
+            return b"", None, None
 
     def _is_allowed_path(self, candidate: Path) -> bool:
         for root in self.allowed_input_roots:

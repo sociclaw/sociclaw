@@ -53,7 +53,7 @@ In `openclaw.json` (or your environment), set:
     "entries": {
       "sociclaw": {
         "env": {
-          "SOCICLAW_IMAGE_API_BASE_URL": "https://creathoon.com",
+          "SOCICLAW_IMAGE_API_BASE_URL": "https://<your-image-api-domain>",
           "SOCICLAW_PROVISION_URL": "https://api.sociclaw.com/api/sociclaw/provision"
         },
         "config": {
@@ -117,9 +117,9 @@ python -m sociclaw.scripts.cli topup-claim --provider telegram --provider-user-i
 ### Recommended (server)
 
 - `OPENCLAW_PROVISION_SECRET` (server-side only)
-- `SOCICLAW_PROVISION_UPSTREAM_URL=https://creathoon.com/api/openclaw/provision`
+- `SOCICLAW_PROVISION_UPSTREAM_URL=https://<your-upstream>/api/openclaw/provision`
 - `SOCICLAW_PROVISION_URL=https://api.sociclaw.com/api/sociclaw/provision`
-- `SOCICLAW_IMAGE_API_BASE_URL=https://creathoon.com`
+- `SOCICLAW_IMAGE_API_BASE_URL=https://<your-image-api-domain>`
 
 ### Optional (feature-by-feature)
 
@@ -129,6 +129,7 @@ python -m sociclaw.scripts.cli topup-claim --provider telegram --provider-user-i
 - `TRELLO_API_KEY`, `TRELLO_TOKEN`, `TRELLO_BOARD_ID`
 - `NOTION_API_KEY`, `NOTION_DATABASE_ID`
 - `SOCICLAW_ALLOW_IMAGE_URL_INPUT` (`true|false`, default false)
+- `SOCICLAW_ALLOWED_IMAGE_URL_HOSTS` (comma-separated allowlist for remote logo URL fallback when enabled)
 - `SOCICLAW_ALLOWED_IMAGE_INPUT_DIRS` (comma-separated allowed paths for local logo/image files, default `.sociclaw,.tmp`)
 - `SOCICLAW_SELF_UPDATE_ENABLED` (`true|false`, default false)
 

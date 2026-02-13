@@ -9,7 +9,7 @@ def _response(status: int, payload: dict, *, headers: dict | None = None) -> req
     resp.status_code = status
     resp._content = __import__("json").dumps(payload).encode("utf-8")
     resp.headers.update(headers or {"Content-Type": "application/json"})
-    resp.url = "https://creathoon.com/api/v1?path=generate"
+    resp.url = "https://image.example.com/api/v1?path=generate"
     return resp
 
 
@@ -32,8 +32,8 @@ def test_create_job_retries_with_image_data_url_payload(monkeypatch):
 
     client = ImageProviderClient(
         api_key="sk_test",
-        generate_url="https://creathoon.com/api/v1?path=generate",
-        jobs_base_url="https://creathoon.com/api/v1/jobs/",
+        generate_url="https://image.example.com/api/v1?path=generate",
+        jobs_base_url="https://image.example.com/api/v1/jobs/",
     )
 
     created = client.create_job(prompt="test", model="nano-banana", image_url="https://cdn.example.com/logo.png")
@@ -58,8 +58,8 @@ def test_create_job_does_not_retry_on_auth_error(monkeypatch):
 
     client = ImageProviderClient(
         api_key="sk_test",
-        generate_url="https://creathoon.com/api/v1?path=generate",
-        jobs_base_url="https://creathoon.com/api/v1/jobs/",
+        generate_url="https://image.example.com/api/v1?path=generate",
+        jobs_base_url="https://image.example.com/api/v1/jobs/",
     )
 
     with pytest.raises(requests.HTTPError):
@@ -71,8 +71,8 @@ def test_create_job_does_not_retry_on_auth_error(monkeypatch):
 def test_resolve_image_data_url_keeps_data_url():
     client = ImageProviderClient(
         api_key="sk_test",
-        generate_url="https://creathoon.com/api/v1?path=generate",
-        jobs_base_url="https://creathoon.com/api/v1/jobs/",
+        generate_url="https://image.example.com/api/v1?path=generate",
+        jobs_base_url="https://image.example.com/api/v1/jobs/",
     )
 
     value = "data:image/png;base64,AAAA"
@@ -83,8 +83,8 @@ def test_resolve_image_data_url_from_local_path(monkeypatch, tmp_path):
     monkeypatch.setenv("SOCICLAW_ALLOWED_IMAGE_INPUT_DIRS", str(tmp_path))
     client = ImageProviderClient(
         api_key="sk_test",
-        generate_url="https://creathoon.com/api/v1?path=generate",
-        jobs_base_url="https://creathoon.com/api/v1/jobs/",
+        generate_url="https://image.example.com/api/v1?path=generate",
+        jobs_base_url="https://image.example.com/api/v1/jobs/",
     )
     image_path = tmp_path / "logo.png"
     image_path.write_bytes(b"\x89PNG\r\n\x1a\nfake")
@@ -97,8 +97,8 @@ def test_resolve_image_data_url_from_local_path(monkeypatch, tmp_path):
 def test_resolve_image_data_url_blocks_disallowed_local_path(tmp_path):
     client = ImageProviderClient(
         api_key="sk_test",
-        generate_url="https://creathoon.com/api/v1?path=generate",
-        jobs_base_url="https://creathoon.com/api/v1/jobs/",
+        generate_url="https://image.example.com/api/v1?path=generate",
+        jobs_base_url="https://image.example.com/api/v1/jobs/",
     )
     assert client._resolve_image_data_url(str(tmp_path / "secret.txt")) is None
 
@@ -107,7 +107,68 @@ def test_resolve_image_data_url_blocks_remote_when_disabled(monkeypatch):
     monkeypatch.setenv("SOCICLAW_ALLOW_IMAGE_URL_INPUT", "false")
     client = ImageProviderClient(
         api_key="sk_test",
-        generate_url="https://creathoon.com/api/v1?path=generate",
-        jobs_base_url="https://creathoon.com/api/v1/jobs/",
+        generate_url="https://image.example.com/api/v1?path=generate",
+        jobs_base_url="https://image.example.com/api/v1/jobs/",
     )
     assert client._resolve_image_data_url("https://example.com/logo.png") is None
+
+
+def test_resolve_image_data_url_blocks_remote_without_allowlist(monkeypatch):
+    monkeypatch.setenv("SOCICLAW_ALLOW_IMAGE_URL_INPUT", "true")
+    monkeypatch.delenv("SOCICLAW_ALLOWED_IMAGE_URL_HOSTS", raising=False)
+
+    calls = {"n": 0}
+
+    def fake_fetch(self, url: str):
+        calls["n"] += 1
+        return b"\x89PNG\r\n\x1a\nfake", "image/png", url
+
+    monkeypatch.setattr(ImageProviderClient, "_fetch_remote_image_bytes", fake_fetch)
+
+    client = ImageProviderClient(
+        api_key="sk_test",
+        generate_url="https://image.example.com/api/v1?path=generate",
+        jobs_base_url="https://image.example.com/api/v1/jobs/",
+    )
+    assert client._resolve_image_data_url("https://example.com/logo.png") is None
+    assert calls["n"] == 0
+
+
+def test_resolve_image_data_url_allows_remote_with_allowlist(monkeypatch):
+    monkeypatch.setenv("SOCICLAW_ALLOW_IMAGE_URL_INPUT", "true")
+    monkeypatch.setenv("SOCICLAW_ALLOWED_IMAGE_URL_HOSTS", "example.com")
+
+    def fake_fetch(self, url: str):
+        return b"\x89PNG\r\n\x1a\nfake", "image/png", url
+
+    monkeypatch.setattr(ImageProviderClient, "_fetch_remote_image_bytes", fake_fetch)
+
+    client = ImageProviderClient(
+        api_key="sk_test",
+        generate_url="https://image.example.com/api/v1?path=generate",
+        jobs_base_url="https://image.example.com/api/v1/jobs/",
+    )
+    resolved = client._resolve_image_data_url("https://example.com/logo.png")
+    assert isinstance(resolved, str)
+    assert resolved.startswith("data:image/png;base64,")
+
+
+def test_resolve_image_data_url_blocks_remote_not_in_allowlist(monkeypatch):
+    monkeypatch.setenv("SOCICLAW_ALLOW_IMAGE_URL_INPUT", "true")
+    monkeypatch.setenv("SOCICLAW_ALLOWED_IMAGE_URL_HOSTS", "example.com")
+
+    calls = {"n": 0}
+
+    def fake_fetch(self, url: str):
+        calls["n"] += 1
+        return b"\x89PNG\r\n\x1a\nfake", "image/png", url
+
+    monkeypatch.setattr(ImageProviderClient, "_fetch_remote_image_bytes", fake_fetch)
+
+    client = ImageProviderClient(
+        api_key="sk_test",
+        generate_url="https://image.example.com/api/v1?path=generate",
+        jobs_base_url="https://image.example.com/api/v1/jobs/",
+    )
+    assert client._resolve_image_data_url("https://evil.com/logo.png") is None
+    assert calls["n"] == 0
