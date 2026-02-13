@@ -4,7 +4,7 @@ description: "An autonomous social media manager agent that researches, plans, a
 homepage: https://sociclaw.com
 user-invocable: true
 disable-model-invocation: false
-metadata: {"version":"0.1.2","tags":["social-media","x","twitter","automation","content","image-api","trello","notion","credits","persistent-memory"]}
+metadata: {"version":"0.1.3","tags":["social-media","x","twitter","automation","content","image-api","trello","notion","credits","persistent-memory"]}
 ---
 # SociClaw Skill
 
@@ -206,6 +206,9 @@ Claim topup after transfer confirmation.
 
 ### `/sociclaw update`
 Maintenance command pattern: check/apply latest skill update on host (mapped to CLI `check-update` / `self-update`).
+Self-update is disabled by default. Enable it only on trusted hosts:
+
+`SOCICLAW_SELF_UPDATE_ENABLED=true`
 
 ### `/sociclaw reset`
 Factory reset local runtime state (config, local session DB, local brand profile, local provisioned user state, persistent memory DB). Requires explicit confirmation.
@@ -222,6 +225,9 @@ SOCICLAW_PROVISION_URL=https://api.sociclaw.com/api/sociclaw/provision
 The gateway keeps `OPENCLAW_PROVISION_SECRET` **server-side**. End-users never see it.
 `SOCICLAW_PROVISION_UPSTREAM_URL` is configured only on your API project.
 `SOCICLAW_INTERNAL_TOKEN` is optional and typically **not** used for user-installed skills on personal VPS/mac mini setups.
+`SOCICLAW_ALLOW_IMAGE_URL_INPUT` (default: false) controls remote logo URL fallback.
+`SOCICLAW_ALLOWED_IMAGE_INPUT_DIRS` (recommended): `.sociclaw,.tmp` paths allowed for local image input.
+`SOCICLAW_SELF_UPDATE_ENABLED` (default: false) controls if `/sociclaw update` is available.
 
 ### Single-Account Mode (Optional)
 
@@ -253,10 +259,10 @@ Example:
 git clone https://github.com/sociclaw/sociclaw.git ~/.openclaw/skills/sociclaw
 ```
 
-One-command install/update (Linux/macOS):
+Install/update:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/sociclaw/sociclaw/main/tools/update_sociclaw.sh)
+git -C ~/.openclaw/skills/sociclaw pull --ff-only
 ```
 
 Then start OpenClaw and run:

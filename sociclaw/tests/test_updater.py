@@ -115,6 +115,7 @@ def test_apply_update_dirty_auto_stash(monkeypatch, tmp_path):
 
 
 def test_cli_self_update_requires_yes(monkeypatch, tmp_path, capsys):
+    monkeypatch.setenv("SOCICLAW_SELF_UPDATE_ENABLED", "true")
     from sociclaw.scripts import cli
 
     monkeypatch.setattr(
@@ -137,3 +138,15 @@ def test_cli_self_update_requires_yes(monkeypatch, tmp_path, capsys):
     assert rc == 1
     payload = capsys.readouterr().out
     assert "run again with --yes" in payload
+
+
+def test_cli_self_update_disabled_without_env(monkeypatch, tmp_path, capsys):
+    monkeypatch.delenv("SOCICLAW_SELF_UPDATE_ENABLED", raising=False)
+    from sociclaw.scripts import cli
+
+    parser = cli.build_parser()
+    args = parser.parse_args(["self-update", "--repo-dir", str(tmp_path)])
+    rc = args.func(args)
+    assert rc == 1
+    payload = capsys.readouterr().out
+    assert "Self-update is disabled" in payload or "self-update-disabled" in payload

@@ -1556,6 +1556,19 @@ def cmd_check_update(args: argparse.Namespace) -> int:
 
 
 def cmd_self_update(args: argparse.Namespace) -> int:
+    if os.getenv("SOCICLAW_SELF_UPDATE_ENABLED", "false").strip().lower() not in {"1", "true", "yes", "on"}:
+        print(
+            json.dumps(
+                {
+                    "ok": False,
+                    "stage": "self-update-disabled",
+                    "message": "Enable self-update explicitly with SOCICLAW_SELF_UPDATE_ENABLED=true on the host.",
+                },
+                indent=2,
+            )
+        )
+        return 1
+
     repo_dir = Path(args.repo_dir).resolve() if args.repo_dir else Path(__file__).resolve().parents[2]
 
     check = check_for_update(repo_dir, remote=args.remote, branch=args.branch, fetch=True)

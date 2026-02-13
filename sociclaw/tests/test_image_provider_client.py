@@ -79,7 +79,8 @@ def test_resolve_image_data_url_keeps_data_url():
     assert client._resolve_image_data_url(value) == value
 
 
-def test_resolve_image_data_url_from_local_path(tmp_path):
+def test_resolve_image_data_url_from_local_path(monkeypatch, tmp_path):
+    monkeypatch.setenv("SOCICLAW_ALLOWED_IMAGE_INPUT_DIRS", str(tmp_path))
     client = ImageProviderClient(
         api_key="sk_test",
         generate_url="https://creathoon.com/api/v1?path=generate",
@@ -91,3 +92,22 @@ def test_resolve_image_data_url_from_local_path(tmp_path):
     resolved = client._resolve_image_data_url(str(image_path))
     assert isinstance(resolved, str)
     assert resolved.startswith("data:image/png;base64,")
+
+
+def test_resolve_image_data_url_blocks_disallowed_local_path(tmp_path):
+    client = ImageProviderClient(
+        api_key="sk_test",
+        generate_url="https://creathoon.com/api/v1?path=generate",
+        jobs_base_url="https://creathoon.com/api/v1/jobs/",
+    )
+    assert client._resolve_image_data_url(str(tmp_path / "secret.txt")) is None
+
+
+def test_resolve_image_data_url_blocks_remote_when_disabled(monkeypatch):
+    monkeypatch.setenv("SOCICLAW_ALLOW_IMAGE_URL_INPUT", "false")
+    client = ImageProviderClient(
+        api_key="sk_test",
+        generate_url="https://creathoon.com/api/v1?path=generate",
+        jobs_base_url="https://creathoon.com/api/v1/jobs/",
+    )
+    assert client._resolve_image_data_url("https://example.com/logo.png") is None

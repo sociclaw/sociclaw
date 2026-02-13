@@ -67,6 +67,12 @@ class ImageProviderClient:
         self.timeout_seconds = int(timeout_seconds)
         self.max_retries = int(os.getenv("SOCICLAW_HTTP_MAX_RETRIES", "3"))
         self.backoff_base_seconds = float(os.getenv("SOCICLAW_HTTP_BACKOFF_SECONDS", "0.5"))
+        self.max_payload_bytes = int(os.getenv("SOCICLAW_IMAGE_INPUT_MAX_BYTES", str(10 * 1024 * 1024)))
+        self.allow_remote_url = (
+            os.getenv("SOCICLAW_ALLOW_IMAGE_URL_INPUT", "false").strip().lower()
+            in {"1", "true", "yes", "on"}
+        )
+        self.allowed_input_roots = self._resolve_allowed_roots()
         self.session = session or requests.Session()
 
     def create_job(
@@ -163,7 +169,14 @@ class ImageProviderClient:
                 data = local_path.read_bytes()
             except OSError:
                 return None
-            return self._build_image_data_url(data, source_hint=str(local_path), content_type_hint=None)
+            content_type = self._guess_image_content_type(data, source_hint=str(local_path))
+            if not content_type:
+                logger.warning("Blocked non-image local file for image generation: %s", local_path)
+                return None
+            return self._build_image_data_url(data, source_hint=str(local_path), content_type_hint=content_type)
+
+        if not self.allow_remote_url:
+            return None
 
         disable = (os.getenv("SOCICLAW_DISABLE_IMAGE_DATA_URL_FALLBACK") or "").strip().lower()
         if disable in {"1", "true", "yes", "on"}:
@@ -184,6 +197,10 @@ class ImageProviderClient:
             return None
 
         content_type = (resp.headers.get("Content-Type", "") or "").split(";")[0].strip().lower()
+        if not content_type.startswith("image/"):
+            content_type = self._guess_image_content_type(resp.content, source_hint=clean, header_hint=content_type) or content_type
+            if not content_type:
+                return None
         return self._build_image_data_url(resp.content, source_hint=clean, content_type_hint=content_type)
 
     def _resolve_local_path(self, image_input: str) -> Optional[Path]:
@@ -198,13 +215,107 @@ class ImageProviderClient:
             file_path = unquote(parsed.path or "")
             if os.name == "nt" and file_path.startswith("/"):
                 file_path = file_path[1:]
-            return Path(file_path)
+            return self._normalize_local_path(file_path)
 
         try:
             candidate = Path(value)
         except (TypeError, ValueError):
             return None
+        return self._normalize_local_path(candidate)
+
+    def _normalize_local_path(self, path: str | Path) -> Optional[Path]:
+        try:
+            candidate = Path(path).expanduser()
+            if not candidate.is_absolute():
+                candidate = (Path.cwd() / candidate).resolve()
+            else:
+                candidate = candidate.resolve()
+        except (OSError, RuntimeError):
+            return None
+
+        try:
+            if not candidate.is_file():
+                return None
+        except OSError:
+            return None
+
+        if not self._is_allowed_path(candidate):
+            logger.warning("Blocked local image path outside allowed roots: %s", candidate)
+            return None
         return candidate
+
+    def _resolve_allowed_roots(self) -> list[Path]:
+        configured = os.getenv("SOCICLAW_ALLOWED_IMAGE_INPUT_DIRS")
+        base = Path.cwd().resolve()
+        candidate_roots: list[Path] = [base / ".sociclaw", base / ".tmp", base]
+        if configured:
+            candidate_roots = []
+            for item in configured.split(","):
+                value = item.strip()
+                if not value:
+                    continue
+                candidate_roots.append(Path(value).expanduser())
+            if not candidate_roots:
+                candidate_roots = [base / ".sociclaw", base / ".tmp"]
+        resolved: list[Path] = []
+        for root in candidate_roots:
+            try:
+                resolved.append(root.resolve())
+            except OSError:
+                resolved.append(Path(root).expanduser())
+        unique: list[Path] = []
+        for root in resolved:
+            if root not in unique:
+                unique.append(root)
+        return unique
+
+    def _is_allowed_path(self, candidate: Path) -> bool:
+        for root in self.allowed_input_roots:
+            try:
+                candidate.relative_to(root)
+                return True
+            except ValueError:
+                continue
+        return False
+
+    def _guess_image_content_type(
+        self,
+        data: bytes,
+        *,
+        source_hint: str,
+        header_hint: str | None = None,
+    ) -> Optional[str]:
+        if header_hint and header_hint.startswith("image/"):
+            return header_hint
+        kind = self._sniff_image_type(data)
+        if kind:
+            return f"image/{kind}"
+
+        guessed, _ = mimetypes.guess_type(source_hint)
+        if guessed and guessed.startswith("image/"):
+            return guessed
+
+        return None
+
+    @staticmethod
+    def _sniff_image_type(data: bytes) -> Optional[str]:
+        if not data:
+            return None
+
+        png = data[:8]
+        if png.startswith(b"\x89PNG\r\n\x1a\n"):
+            return "png"
+        if data[:3] == b"\xff\xd8\xff":
+            return "jpeg"
+        if data[:6] in (b"GIF87a", b"GIF89a"):
+            return "gif"
+        if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+            return "webp"
+        if len(data) >= 2 and data[:2] in (b"BM",):
+            return "bmp"
+        if len(data) >= 4 and data[:4] in (b"MM\x00*", b"II*\x00"):
+            return "tiff"
+        return None
 
     def _build_image_data_url(
         self,
@@ -215,17 +326,13 @@ class ImageProviderClient:
     ) -> Optional[str]:
         if not data:
             return None
-        if len(data) > 10 * 1024 * 1024:
+        if len(data) > self.max_payload_bytes:
             logger.warning("Input image too large for data URL fallback (%s bytes)", len(data))
             return None
 
         content_type = (content_type_hint or "").split(";")[0].strip().lower()
         if not content_type.startswith("image/"):
-            guessed, _ = mimetypes.guess_type(source_hint)
-            if guessed and guessed.startswith("image/"):
-                content_type = guessed
-            else:
-                content_type = "image/png"
+            return None
 
         encoded = base64.b64encode(data).decode("ascii")
         return f"data:{content_type};base64,{encoded}"

@@ -17,8 +17,6 @@ SociClaw is an OpenClaw skill that helps teams produce X/Twitter content automat
 ## What this repo contains
 
 - `sociclaw/` — Python skill (core code + CLI)
-- `api/sociclaw/` — Vercel API gateway for secure provisioning
-- `src/lib/sociclaw/` — Optional TypeScript helper SDK
 - `templates/`, `fixtures/`, `tests/` — assets and tests
 
 ---
@@ -130,6 +128,9 @@ python -m sociclaw.scripts.cli topup-claim --provider telegram --provider-user-i
 - `SOCICLAW_IMAGE_MODEL` (ex: `nano-banana`)
 - `TRELLO_API_KEY`, `TRELLO_TOKEN`, `TRELLO_BOARD_ID`
 - `NOTION_API_KEY`, `NOTION_DATABASE_ID`
+- `SOCICLAW_ALLOW_IMAGE_URL_INPUT` (`true|false`, default false)
+- `SOCICLAW_ALLOWED_IMAGE_INPUT_DIRS` (comma-separated allowed paths for local logo/image files, default `.sociclaw,.tmp`)
+- `SOCICLAW_SELF_UPDATE_ENABLED` (`true|false`, default false)
 
 > Do **not** send `OPENCLAW_PROVISION_SECRET` to end-users.
 
@@ -151,9 +152,11 @@ python -m sociclaw.scripts.cli topup-claim --provider telegram --provider-user-i
 python -m sociclaw.scripts.cli self-update --yes
 ```
 
-Run this in a scheduled job or after deploy updates; restart your bot/service afterward.
+Run this on trusted hosts only. Self-update is disabled by default and requires:
 
-If your bot has local changes, `self-update` auto-stashes untracked/dirty files by default.
+`SOCICLAW_SELF_UPDATE_ENABLED=true`
+
+Run this in a scheduled job or after deploy updates; restart your bot/service afterward.
 
 ---
 
@@ -168,7 +171,5 @@ If your bot has local changes, `self-update` auto-stashes untracked/dirty files 
 ## Helpful docs
 
 - `SKILL.md` (skill contract)
-- `SPEC.md` (architecture notes)
-- `ROADMAP.md` (future roadmap)
-- `CREATHOON_QA_CHECKLIST.md` (integration test playbook)
+- `requirements.txt` (dependencies)
 
