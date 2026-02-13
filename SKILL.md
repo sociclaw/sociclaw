@@ -4,7 +4,15 @@ description: "An autonomous social media manager agent that researches, plans, a
 homepage: https://sociclaw.com
 user-invocable: true
 disable-model-invocation: false
-metadata: {"version":"0.1.4","tags":["social-media","x","twitter","automation","content","image-api","trello","notion","credits","persistent-memory"]}
+command-dispatch: true
+emoji: "🔵"
+requires:
+  bins: ["python3"]
+  env: ["SOCICLAW_PROVISION_URL", "SOCICLAW_IMAGE_API_BASE_URL"]
+  config: []
+metadata:
+  version: 0.1.5
+  tags: ["social-media", "x", "twitter", "automation", "content", "image-api", "trello", "notion", "credits", "persistent-memory"]
 ---
 # SociClaw Skill
 
@@ -86,7 +94,7 @@ Optional, only ask if user opts in:
 - advanced gateway/server variables
 
 If using provisioning flow:
-- Do not ask end-users for `OPENCLAW_PROVISION_SECRET`.
+- Do not ask end-users for any upstream admin secret.
 - Keep server-side secrets out of user chat.
 
 ## Strategy: Strategic Social Media Agent (X)
@@ -222,8 +230,8 @@ To auto-create users + API keys without exposing your admin secret, deploy a sma
 SOCICLAW_PROVISION_URL=https://api.sociclaw.com/api/sociclaw/provision
 ```
 
-The gateway keeps `OPENCLAW_PROVISION_SECRET` **server-side**. End-users never see it.
-`SOCICLAW_PROVISION_UPSTREAM_URL` is configured only on your API project.
+The gateway keeps the upstream admin secret **server-side**. End-users never see it.
+`SOCICLAW_PROVISION_UPSTREAM_URL` is configured only on your API project (gateway).
 `SOCICLAW_INTERNAL_TOKEN` is optional and typically **not** used for user-installed skills on personal VPS/mac mini setups.
 `SOCICLAW_ALLOW_IMAGE_URL_INPUT` (default: false) controls remote logo URL fallback.
 `SOCICLAW_ALLOWED_IMAGE_URL_HOSTS` (required if enabling remote URL input): comma-separated allowlist for remote logo fetch fallback.

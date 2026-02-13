@@ -117,9 +117,10 @@ def test_apply_update_dirty_auto_stash(monkeypatch, tmp_path):
 def test_cli_self_update_requires_yes(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("SOCICLAW_SELF_UPDATE_ENABLED", "true")
     from sociclaw.scripts import cli
+    from sociclaw.scripts import updater
 
     monkeypatch.setattr(
-        cli,
+        updater,
         "check_for_update",
         lambda *args, **kwargs: UpdateCheckResult(
             ok=True,

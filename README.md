@@ -114,12 +114,15 @@ python -m sociclaw.scripts.cli topup-claim --provider telegram --provider-user-i
 
 ## Environments and secrets
 
-### Recommended (server)
+### Required (core)
 
-- `OPENCLAW_PROVISION_SECRET` (server-side only)
-- `SOCICLAW_PROVISION_UPSTREAM_URL=https://<your-upstream>/api/openclaw/provision`
-- `SOCICLAW_PROVISION_URL=https://api.sociclaw.com/api/sociclaw/provision`
-- `SOCICLAW_IMAGE_API_BASE_URL=https://<your-image-api-domain>`
+- `SOCICLAW_PROVISION_URL` (provisioning gateway endpoint, required if you want auto-provision)
+- `SOCICLAW_IMAGE_API_BASE_URL` (image/topup API base domain)
+
+### Server-only (gateway, never on user hosts)
+
+- Upstream provisioning URL (where your gateway forwards requests)
+- Upstream admin secret (used by the upstream to authorize provisioning)
 
 ### Optional (feature-by-feature)
 
@@ -133,7 +136,7 @@ python -m sociclaw.scripts.cli topup-claim --provider telegram --provider-user-i
 - `SOCICLAW_ALLOWED_IMAGE_INPUT_DIRS` (comma-separated allowed paths for local logo/image files, default `.sociclaw,.tmp`)
 - `SOCICLAW_SELF_UPDATE_ENABLED` (`true|false`, default false)
 
-> Do **not** send `OPENCLAW_PROVISION_SECRET` to end-users.
+> Never paste secrets in chat. Configure secrets via environment variables on trusted hosts only.
 
 ---
 

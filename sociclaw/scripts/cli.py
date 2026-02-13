@@ -7,10 +7,6 @@ reproducible way to exercise the local stack:
 - Generate an image using the provisioned API key
 
 Examples (PowerShell):
-  $env:OPENCLAW_PROVISION_SECRET="..."
-  python -m sociclaw.scripts.cli provision-image --provider telegram --provider-user-id 123
-
-
   python -m sociclaw.scripts.cli whoami --provider telegram --provider-user-id 123
 
   python -m sociclaw.scripts.cli generate-image --provider telegram --provider-user-id 123 --prompt "a blue bird logo"
@@ -32,7 +28,6 @@ from typing import List, Optional
 from .brand_profile import BrandProfile, default_brand_profile_path, load_brand_profile, save_brand_profile
 from .content_generator import ContentGenerator, GeneratedPost
 from .research import TrendData, TrendResearcher
-from .provisioning_client import ProvisioningClient
 from .provisioning_gateway import SociClawProvisioningGatewayClient
 from .image_generator import ImageGenerator
 from .local_session_store import LocalSessionStore, default_db_path
@@ -43,7 +38,6 @@ from .state_store import StateStore, default_state_path
 from .memory_store import SociClawMemoryStore, default_memory_db_path
 from .topup_client import TopupClient
 from .trello_sync import TrelloSync
-from .updater import apply_update, check_for_update
 from .release_audit import scan_forbidden_terms, scan_placeholders
 from .validators import validate_provider, validate_provider_user_id, validate_tx_hash
 
@@ -173,41 +167,7 @@ def _generated_post_from_dict(item: dict) -> GeneratedPost:
 
 
 def cmd_provision_image(args: argparse.Namespace) -> int:
-    provider, provider_user_id = _validated_provider_fields(args.provider, str(args.provider_user_id))
-    openclaw_secret = args.openclaw_secret or os.getenv("OPENCLAW_PROVISION_SECRET")
-    if not openclaw_secret:
-        raise SystemExit("Missing OPENCLAW_PROVISION_SECRET (env) or --openclaw-secret")
-    if not args.url:
-        raise SystemExit("Missing provisioning --url or env SOCICLAW_PROVISION_UPSTREAM_URL")
-
-    client = ProvisioningClient(openclaw_secret=openclaw_secret, url=args.url)
-    res = client.provision(
-        provider=provider,
-        provider_user_id=provider_user_id,
-        create_api_key=True,
-    )
-
-    store = StateStore(Path(args.state_path) if args.state_path else None)
-    store.upsert_user(
-        provider=res.provider,
-        provider_user_id=res.provider_user_id,
-        image_api_key=res.api_key,
-        wallet_address=res.wallet_address,
-    )
-
-    print(
-        json.dumps(
-            {
-                "provider": res.provider,
-                "provider_user_id": res.provider_user_id,
-                "api_key": _redact_secret(res.api_key),
-                "wallet_address": res.wallet_address,
-                "state_path": str(store.path),
-            },
-            indent=2,
-        )
-    )
-    return 0
+    raise SystemExit("Direct upstream provisioning is not supported in this skill build. Use provision-image-gateway.")
 
 
 def cmd_whoami(args: argparse.Namespace) -> int:
@@ -244,7 +204,7 @@ def cmd_generate_image(args: argparse.Namespace) -> int:
     u = store.get_user(provider=provider, provider_user_id=provider_user_id)
     if not u or not u.image_api_key:
         raise SystemExit(
-            "Missing provisioned user API key. Run: provision-image "
+            "Missing provisioned user API key. Run: provision-image-gateway "
             f"--provider {args.provider} --provider-user-id {args.provider_user_id}"
         )
 
@@ -1544,6 +1504,12 @@ def cmd_release_audit(args: argparse.Namespace) -> int:
 
 
 def cmd_check_update(args: argparse.Namespace) -> int:
+    try:
+        from .updater import check_for_update
+    except Exception:
+        print(json.dumps({"ok": False, "error": "Updater module not available in this build"}, indent=2))
+        return 1
+
     repo_dir = Path(args.repo_dir).resolve() if args.repo_dir else Path(__file__).resolve().parents[2]
     result = check_for_update(
         repo_dir,
@@ -1556,6 +1522,12 @@ def cmd_check_update(args: argparse.Namespace) -> int:
 
 
 def cmd_self_update(args: argparse.Namespace) -> int:
+    try:
+        from .updater import apply_update, check_for_update
+    except Exception:
+        print(json.dumps({"ok": False, "error": "Updater module not available in this build"}, indent=2))
+        return 1
+
     if os.getenv("SOCICLAW_SELF_UPDATE_ENABLED", "false").strip().lower() not in {"1", "true", "yes", "on"}:
         print(
             json.dumps(
@@ -1625,25 +1597,9 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="cmd")
     p.set_defaults(func=cmd_home)
 
-    p_prov = sub.add_parser("provision-image", help="Provision image account/API key for a provider user id")
-    p_prov.add_argument("--provider", required=True, help="e.g. telegram")
-    p_prov.add_argument("--provider-user-id", required=True, help="e.g. Telegram user id")
-    p_prov.add_argument(
-        "--openclaw-secret",
-        default=None,
-        help="Optional. If omitted, uses env OPENCLAW_PROVISION_SECRET.",
-    )
-    p_prov.add_argument(
-        "--url",
-        default=os.getenv("SOCICLAW_PROVISION_UPSTREAM_URL"),
-        help="Provisioning URL",
-    )
-    p_prov.add_argument("--state-path", default=None, help="Override state path (defaults to .tmp/sociclaw_state.json)")
-    p_prov.set_defaults(func=cmd_provision_image)
-
     p_prox = sub.add_parser(
         "provision-image-gateway",
-        help="Provision via your backend gateway (recommended; keeps OPENCLAW_PROVISION_SECRET server-side)",
+        help="Provision via your backend gateway (recommended; keeps the admin secret server-side)",
     )
     p_prox.add_argument("--provider", required=True, help="e.g. telegram")
     p_prox.add_argument("--provider-user-id", required=True, help="e.g. Telegram user id")
@@ -1950,7 +1906,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_release_audit = sub.add_parser("release-audit", help="Audit repo for placeholders and forbidden terms")
     p_release_audit.add_argument("--root", default=None, help="Repo root to scan")
-    p_release_audit.add_argument("--forbidden-terms", default="Creathoon", help="Comma-separated list of forbidden terms")
+    p_release_audit.add_argument(
+        "--forbidden-terms",
+        default="",
+        help="Comma-separated list of forbidden terms (optional)",
+    )
     p_release_audit.add_argument("--strict", action="store_true", help="Fail on any finding")
     p_release_audit.add_argument("--max-findings", default=200, type=int, help="Max findings to print")
     p_release_audit.set_defaults(func=cmd_release_audit)

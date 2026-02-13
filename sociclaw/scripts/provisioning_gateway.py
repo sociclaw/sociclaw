@@ -1,9 +1,9 @@
 """
 Provisioning gateway client (recommended for production).
 
-Instead of calling the image-provider provisioning API directly (which requires the highly
-privileged OPENCLAW_PROVISION_SECRET), call YOUR backend (e.g. Vercel) which
-keeps that secret server-side.
+Instead of calling the image-provider provisioning API directly (which requires a highly
+privileged admin secret), call YOUR backend (e.g. Vercel) which keeps that secret
+server-side.
 
 Expected gateway behavior:
 - Accepts POST JSON:
