@@ -80,6 +80,7 @@ def test_resolve_image_data_url_keeps_data_url():
 
 
 def test_resolve_image_data_url_from_local_path(monkeypatch, tmp_path):
+    monkeypatch.setenv("SOCICLAW_ALLOW_ABSOLUTE_IMAGE_INPUT_DIRS", "true")
     monkeypatch.setenv("SOCICLAW_ALLOWED_IMAGE_INPUT_DIRS", str(tmp_path))
     client = ImageProviderClient(
         api_key="sk_test",
@@ -101,6 +102,17 @@ def test_resolve_image_data_url_blocks_disallowed_local_path(tmp_path):
         jobs_base_url="https://image.example.com/api/v1/jobs/",
     )
     assert client._resolve_image_data_url(str(tmp_path / "secret.txt")) is None
+
+
+def test_allowed_image_input_dirs_ignores_absolute_paths_by_default(monkeypatch, tmp_path):
+    monkeypatch.delenv("SOCICLAW_ALLOW_ABSOLUTE_IMAGE_INPUT_DIRS", raising=False)
+    monkeypatch.setenv("SOCICLAW_ALLOWED_IMAGE_INPUT_DIRS", str(tmp_path))
+    client = ImageProviderClient(
+        api_key="sk_test",
+        generate_url="https://image.example.com/api/v1?path=generate",
+        jobs_base_url="https://image.example.com/api/v1/jobs/",
+    )
+    assert all(str(p) != str(tmp_path) for p in client.allowed_input_roots)
 
 
 def test_resolve_image_data_url_blocks_remote_when_disabled(monkeypatch):

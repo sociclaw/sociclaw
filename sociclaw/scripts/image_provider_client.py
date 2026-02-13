@@ -245,13 +245,40 @@ class ImageProviderClient:
         configured = os.getenv("SOCICLAW_ALLOWED_IMAGE_INPUT_DIRS")
         base = Path.cwd().resolve()
         candidate_roots: list[Path] = [base / ".sociclaw", base / ".tmp"]
+        allow_absolute = (
+            os.getenv("SOCICLAW_ALLOW_ABSOLUTE_IMAGE_INPUT_DIRS", "false").strip().lower()
+            in {"1", "true", "yes", "on"}
+        )
         if configured:
             candidate_roots = []
             for item in configured.split(","):
                 value = item.strip()
                 if not value:
                     continue
-                candidate_roots.append(Path(value).expanduser())
+
+                p = Path(value).expanduser()
+                if p.is_absolute():
+                    if not allow_absolute:
+                        logger.warning(
+                            "Ignoring absolute SOCICLAW_ALLOWED_IMAGE_INPUT_DIRS entry (set SOCICLAW_ALLOW_ABSOLUTE_IMAGE_INPUT_DIRS=true to allow): %s",
+                            p,
+                        )
+                        continue
+                    candidate = p
+                else:
+                    candidate = (base / p)
+
+                try:
+                    resolved = candidate.resolve()
+                except OSError:
+                    resolved = candidate
+
+                # Never allow filesystem roots (e.g. C:\ or /).
+                if resolved.parent == resolved:
+                    logger.warning("Ignoring root directory in SOCICLAW_ALLOWED_IMAGE_INPUT_DIRS: %s", resolved)
+                    continue
+
+                candidate_roots.append(resolved)
             if not candidate_roots:
                 candidate_roots = [base / ".sociclaw", base / ".tmp"]
         resolved: list[Path] = []

@@ -2,7 +2,6 @@
 Module for generating images.
 
 Provides:
-- Optional credit checks/consumption (via PaymentHandler)
 - Exponential backoff retries
 - Local image backup (downloads the generated image URL)
 """
@@ -19,7 +18,6 @@ from typing import Optional
 import requests
 
 from .image_provider_client import ImageProviderClient
-from .payment_handler import PaymentHandler
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -58,16 +56,15 @@ class ImageGenerator:
         provider_client: Optional[ImageProviderClient] = None,
         # Shared
         output_dir: Optional[Path] = None,
-        payment_handler: Optional[PaymentHandler] = None,
         max_retries: int = 3,
         backoff_base: float = 1.5,
     ) -> None:
-        self.payment_handler = payment_handler
         self.max_retries = int(max_retries)
         self.backoff_base = float(backoff_base)
 
         if output_dir is None:
-            output_dir = Path(__file__).parent.parent / "fixtures" / "generated_images"
+            repo_root = Path(__file__).resolve().parents[2]
+            output_dir = repo_root / ".sociclaw" / "generated_images"
         self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -115,25 +112,10 @@ class ImageGenerator:
 
         logger.info("ImageGenerator initialized")
 
-    def check_credits(self, user_address: str) -> int:
-        """
-        Check available credits for a user.
-
-        If no PaymentHandler is configured, assumes unlimited credits.
-        """
-        if not self.payment_handler:
-            logger.warning("No payment handler configured; assuming unlimited credits")
-            return 10**9
-        return int(self.payment_handler.get_credits(user_address))
-
     def generate_image(self, prompt: str, user_address: str) -> ImageResult:
         """
         Generate an image from a prompt.
         """
-        credits = self.check_credits(user_address)
-        if credits <= 0:
-            raise ValueError("Insufficient credits to generate image")
-
         last_error: Optional[Exception] = None
         delay = 1.0
 
@@ -152,9 +134,6 @@ class ImageGenerator:
                 )
 
                 local_path = self._save_image(url)
-
-                if self.payment_handler:
-                    self.payment_handler.use_credit(user_address)
 
                 return ImageResult(url=str(url), local_path=local_path)
 

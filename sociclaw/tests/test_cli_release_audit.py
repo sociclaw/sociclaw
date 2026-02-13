@@ -12,7 +12,7 @@ def test_cli_release_audit_warn_non_strict(tmp_path, capsys):
             "--root",
             str(tmp_path),
             "--forbidden-terms",
-            "Creathoon",
+            "ExampleUpstream",
         ]
     )
     rc = args.func(args)
@@ -31,7 +31,7 @@ def test_cli_release_audit_ok_strict(tmp_path, capsys):
             "--root",
             str(tmp_path),
             "--forbidden-terms",
-            "Creathoon",
+            "ExampleUpstream",
             "--strict",
         ]
     )

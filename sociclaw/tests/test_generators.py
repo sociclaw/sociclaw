@@ -6,7 +6,6 @@ from sociclaw.scripts.brand_profile import BrandProfile
 from sociclaw.scripts.content_generator import ContentGenerator, GeneratedPost
 from sociclaw.scripts.image_generator import ImageGenerator
 from sociclaw.scripts.notion_sync import NotionSync
-from sociclaw.scripts.payment_handler import PaymentHandler
 from sociclaw.scripts.research import TrendResearcher
 from sociclaw.scripts.scheduler import QuarterlyScheduler, PostPlan
 from sociclaw.scripts.trello_sync import TrelloSync
@@ -150,13 +149,6 @@ def test_content_generator_uses_brand_language_for_details():
 
 
 def test_image_generator(monkeypatch, tmp_path):
-    class DummyPayment:
-        def get_credits(self, user_address):
-            return 1
-
-        def use_credit(self, user_address):
-            return None
-
     class DummyImageProviderClient:
         def __init__(self):
             self.called = False
@@ -184,7 +176,6 @@ def test_image_generator(monkeypatch, tmp_path):
         model="nano-banana",
         provider_client=provider,
         output_dir=tmp_path,
-        payment_handler=DummyPayment(),
     )
 
     result = generator.generate_image("test prompt", "0xabc")
@@ -551,104 +542,3 @@ def test_notion_sync(sample_generated_posts):
 
     assert page["id"] == "page"
     client.pages.create.assert_called_once()
-
-
-def test_payment_handler():
-    class DummyReceipt:
-        def __init__(self):
-            self.transactionHash = b"\x12"
-
-    class DummySigned:
-        rawTransaction = b"\x00"
-
-    class DummyAccount:
-        address = "0xowner"
-
-        def sign_transaction(self, tx):
-            return DummySigned()
-
-    class DummyEthAccount:
-        def from_key(self, key):
-            return DummyAccount()
-
-    class DummyEventFilter:
-        def __init__(self):
-            self._called = False
-
-        def get_new_entries(self):
-            if self._called:
-                return []
-            self._called = True
-            return [
-                {
-                    "args": {
-                        "user": "0x123",
-                        "amount": 1_000_000,
-                        "credits": 6,
-                    }
-                }
-            ]
-
-    class DummyEvents:
-        class PaymentReceived:
-            @staticmethod
-            def create_filter(fromBlock="latest", argument_filters=None):
-                return DummyEventFilter()
-
-    class DummyFunctions:
-        def getCredits(self, user):
-            class Call:
-                def call(self):
-                    return 5
-
-            return Call()
-
-        def useCredit(self, user):
-            class Builder:
-                def build_transaction(self, params):
-                    return {"to": "0xcontract", "data": "0x"}
-
-            return Builder()
-
-    class DummyContract:
-        functions = DummyFunctions()
-        events = DummyEvents()
-
-    class DummyEth:
-        gas_price = 1
-        account = DummyEthAccount()
-
-        def contract(self, address, abi):
-            return DummyContract()
-
-        def get_transaction_count(self, address):
-            return 0
-
-        def send_raw_transaction(self, raw):
-            return b"\x12"
-
-        def wait_for_transaction_receipt(self, tx_hash):
-            return DummyReceipt()
-
-    class DummyMiddleware:
-        def inject(self, *args, **kwargs):
-            return None
-
-    class DummyWeb3:
-        eth = DummyEth()
-        middleware_onion = DummyMiddleware()
-
-        def to_checksum_address(self, address):
-            return address
-
-    handler = PaymentHandler(
-        rpc_url="http://localhost",
-        contract_address="0xcontract",
-        private_key="0xabc",
-        web3=DummyWeb3(),
-    )
-
-    assert handler.get_credits("0x123") == 5
-    assert handler.use_credit("0x123") == "12"
-    event = handler.wait_for_payment("0x123", 1, timeout=1, poll_interval=0)
-    assert event["args"]["amount"] == 1_000_000

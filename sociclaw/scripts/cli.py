@@ -243,8 +243,6 @@ def cmd_generate_image(args: argparse.Namespace) -> int:
         model=args.model,
         image_url=image_url,
         output_dir=out_dir,
-        # Provider manages billing/credits on its side; we do not enforce PaymentHandler here.
-        payment_handler=None,
     )
 
     prompt = _logo_directed_prompt(args.prompt, bool(image_url))
@@ -674,7 +672,6 @@ def cmd_generate(args: argparse.Namespace) -> int:
             image_url=image_input,
             timeout_seconds=int(os.getenv("SOCICLAW_IMAGE_TIMEOUT_SECONDS", "120")),
             poll_interval_seconds=int(os.getenv("SOCICLAW_IMAGE_POLL_INTERVAL_SECONDS", "2")),
-            payment_handler=None,
         )
 
     trello = None
@@ -1368,7 +1365,6 @@ def cmd_e2e_staging(args: argparse.Namespace) -> int:
                     api_key=user.image_api_key,
                     model=args.image_model,
                     image_url=image_url,
-                    payment_handler=None,
                 )
                 image_prompt = _logo_directed_prompt(args.image_prompt, bool(image_url))
                 image = image_gen.generate_image(image_prompt, user_address=f"{provider}:{provider_user_id}")

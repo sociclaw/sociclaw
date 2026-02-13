@@ -13,8 +13,8 @@ def test_scan_placeholders(tmp_path):
 
 def test_scan_forbidden_terms(tmp_path):
     root = tmp_path
-    (root / "doc.md").write_text("This references Creathoon backend.\n", encoding="utf-8")
-    findings = scan_forbidden_terms(root, ["Creathoon"])
+    (root / "doc.md").write_text("This references ExampleUpstream backend.\n", encoding="utf-8")
+    findings = scan_forbidden_terms(root, ["ExampleUpstream"])
     assert len(findings) == 1
     assert findings[0].kind == "forbidden_term"
     assert findings[0].file == str(Path("doc.md"))

@@ -17,7 +17,7 @@ SociClaw is an OpenClaw skill that helps teams produce X/Twitter content automat
 ## What this repo contains
 
 - `sociclaw/` — Python skill (core code + CLI)
-- `templates/`, `fixtures/`, `tests/` — assets and tests
+- `sociclaw/templates/`, `sociclaw/fixtures/`, `sociclaw/tests/` — assets and tests
 
 ---
 
@@ -43,9 +43,27 @@ python -m pytest -q
 
 ## OpenClaw setup (quick)
 
-### 1) Minimal config
+### 1) Quick start (text-only, no envs required)
 
-In `openclaw.json` (or your environment), set:
+1. Run:
+
+```bash
+/sociclaw
+/sociclaw setup
+```
+
+This stores local config in `.sociclaw/` and gets you planning/generating posts right away.
+
+### 2) Optional: enable images + credits
+
+To generate images (and allow `/sociclaw pay` topups), set:
+
+- `SOCICLAW_IMAGE_API_BASE_URL` (Image API base domain)
+- Either:
+  - `SOCICLAW_PROVISION_URL` (recommended, auto-provision per user), or
+  - `SOCICLAW_IMAGE_API_KEY` (single-account mode)
+
+Example `openclaw.json` env config:
 
 ```json
 {
@@ -55,21 +73,10 @@ In `openclaw.json` (or your environment), set:
         "env": {
           "SOCICLAW_IMAGE_API_BASE_URL": "https://<your-image-api-domain>",
           "SOCICLAW_PROVISION_URL": "https://api.sociclaw.com/api/sociclaw/provision"
-        },
-        "config": {
-          "userNiche": "crypto",
-          "postingFrequency": "2/day"
         }
       }
     }
   }
-}
-```
-
-### 2) Run one-time setup
-
-```bash
-python -m sociclaw.scripts.cli setup
 ```
 
 You will be guided through:
@@ -114,26 +121,31 @@ python -m sociclaw.scripts.cli topup-claim --provider telegram --provider-user-i
 
 ## Environments and secrets
 
-### Required (core)
+### Required (by feature)
 
-- `SOCICLAW_PROVISION_URL` (provisioning gateway endpoint, required if you want auto-provision)
-- `SOCICLAW_IMAGE_API_BASE_URL` (image/topup API base domain)
+- Images + credits:
+  - `SOCICLAW_IMAGE_API_BASE_URL`
+  - `SOCICLAW_IMAGE_MODEL` (optional, default `nano-banana`)
+  - `SOCICLAW_IMAGE_URL` / `brand_logo_url` (required for img2img models like `nano-banana`)
+- Auto-provisioning (recommended):
+  - `SOCICLAW_PROVISION_URL`
+  - `SOCICLAW_INTERNAL_TOKEN` (optional; only if your gateway requires it)
+- Single-account mode (no provisioning):
+  - `SOCICLAW_IMAGE_API_KEY`
 
 ### Server-only (gateway, never on user hosts)
 
-- Upstream provisioning URL (where your gateway forwards requests)
-- Upstream admin secret (used by the upstream to authorize provisioning)
+- Your gateway will hold privileged secrets server-side (never paste into chat, never set them on user VPS/mac mini).
 
 ### Optional (feature-by-feature)
 
 - `XAI_API_KEY` (trend research)
-- `SOCICLAW_IMAGE_API_KEY` (single-account mode)
-- `SOCICLAW_IMAGE_MODEL` (ex: `nano-banana`)
 - `TRELLO_API_KEY`, `TRELLO_TOKEN`, `TRELLO_BOARD_ID`
 - `NOTION_API_KEY`, `NOTION_DATABASE_ID`
 - `SOCICLAW_ALLOW_IMAGE_URL_INPUT` (`true|false`, default false)
 - `SOCICLAW_ALLOWED_IMAGE_URL_HOSTS` (comma-separated allowlist for remote logo URL fallback when enabled)
 - `SOCICLAW_ALLOWED_IMAGE_INPUT_DIRS` (comma-separated allowed paths for local logo/image files, default `.sociclaw,.tmp`)
+- `SOCICLAW_ALLOW_ABSOLUTE_IMAGE_INPUT_DIRS` (`true|false`, default false)
 - `SOCICLAW_SELF_UPDATE_ENABLED` (`true|false`, default false)
 
 > Never paste secrets in chat. Configure secrets via environment variables on trusted hosts only.
