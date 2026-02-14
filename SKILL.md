@@ -15,7 +15,7 @@ requirements:
   env: []
   config: []
 metadata:
-  version: 0.1.7
+  version: 0.1.8
   tags: ["social-media", "x", "twitter", "automation", "content", "image-api", "trello", "notion", "credits", "persistent-memory"]
 ---
 # SociClaw Skill
@@ -78,7 +78,7 @@ SociClaw is an AI agent dedicated to managing social media accounts autonomously
 
 - `/sociclaw setup` maps to CLI command `setup` (alias of `setup-wizard`).
 - `/sociclaw reset` maps to CLI command `reset`.
-- `/sociclaw update` maps to CLI command `self-update`.
+- `/sociclaw update` maps to CLI command `self-update` (manual instructions only, no code executed).
 - Keep responses user-facing and concise. Do not print hidden deliberation.
 - `/sociclaw` (without subcommand) should act as a welcome+help entrypoint, not as an error dump.
 
@@ -242,10 +242,9 @@ Start credits topup flow (returns deposit address and exact USDC amount).
 Claim topup after transfer confirmation.
 
 ### `/sociclaw update`
-Maintenance command pattern: check/apply latest skill update on host (mapped to CLI `check-update` / `self-update`).
-Self-update is disabled by default. Enable it only on trusted hosts:
+Print safe, manual update steps for the host.
 
-`SOCICLAW_SELF_UPDATE_ENABLED=true`
+This skill build does **not** execute `git pull` or `pip install` automatically (to reduce security risk and scanner flags).
 
 ### `/sociclaw reset`
 Factory reset local runtime state (config, local session DB, local brand profile, local provisioned user state, persistent memory DB). Requires explicit confirmation.
@@ -277,7 +276,6 @@ Optional hardening knobs:
 - `SOCICLAW_ALLOWED_IMAGE_URL_HOSTS` (required if enabling remote URL input): comma-separated allowlist for remote logo fetch fallback.
 - `SOCICLAW_ALLOWED_IMAGE_INPUT_DIRS` (recommended): `.sociclaw,.tmp` paths allowed for local image input.
 - `SOCICLAW_ALLOW_ABSOLUTE_IMAGE_INPUT_DIRS` (default: false) allows absolute dir entries in `SOCICLAW_ALLOWED_IMAGE_INPUT_DIRS`.
-- `SOCICLAW_SELF_UPDATE_ENABLED` (default: false) controls if `/sociclaw update` is available.
 
 ### Single-Account Mode (Optional)
 

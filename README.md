@@ -146,7 +146,6 @@ python -m sociclaw.scripts.cli topup-claim --provider telegram --provider-user-i
 - `SOCICLAW_ALLOWED_IMAGE_URL_HOSTS` (comma-separated allowlist for remote logo URL fallback when enabled)
 - `SOCICLAW_ALLOWED_IMAGE_INPUT_DIRS` (comma-separated allowed paths for local logo/image files, default `.sociclaw,.tmp`)
 - `SOCICLAW_ALLOW_ABSOLUTE_IMAGE_INPUT_DIRS` (`true|false`, default false)
-- `SOCICLAW_SELF_UPDATE_ENABLED` (`true|false`, default false)
 
 > Never paste secrets in chat. Configure secrets via environment variables on trusted hosts only.
 
@@ -165,14 +164,10 @@ python -m sociclaw.scripts.cli topup-claim --provider telegram --provider-user-i
 ## Update and maintenance
 
 ```bash
-python -m sociclaw.scripts.cli self-update --yes
+python -m sociclaw.scripts.cli self-update
 ```
 
-Run this on trusted hosts only. Self-update is disabled by default and requires:
-
-`SOCICLAW_SELF_UPDATE_ENABLED=true`
-
-Run this in a scheduled job or after deploy updates; restart your bot/service afterward.
+This build prints **manual update steps** (it does not run `git pull` or `pip install` automatically for security).
 
 ---
 
