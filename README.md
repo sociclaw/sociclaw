@@ -70,8 +70,8 @@ Example `openclaw.json` env config:
   "skills": {
     "entries": {
       "sociclaw": {
-        "env": {
-          "SOCICLAW_IMAGE_API_BASE_URL": "https://<your-image-api-domain>",
+          "env": {
+          "SOCICLAW_IMAGE_API_BASE_URL": "https://api.sociclaw.com",
           "SOCICLAW_PROVISION_URL": "https://api.sociclaw.com/api/sociclaw/provision"
         }
       }

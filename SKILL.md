@@ -15,7 +15,7 @@ requirements:
   env: []
   config: []
 metadata:
-  version: 0.1.9
+  version: 0.1.10
   tags: ["social-media", "x", "twitter", "automation", "content", "image-api", "trello", "notion", "credits", "persistent-memory"]
 ---
 # SociClaw Skill
@@ -260,7 +260,7 @@ To auto-create users + API keys without exposing your admin secret, deploy a sma
 
 ```bash
 SOCICLAW_PROVISION_URL=https://api.sociclaw.com/api/sociclaw/provision
-SOCICLAW_IMAGE_API_BASE_URL=https://<your-image-api-domain>
+SOCICLAW_IMAGE_API_BASE_URL=https://api.sociclaw.com
 ```
 
 The gateway keeps the upstream admin secret **server-side**. End-users never see it.
@@ -282,7 +282,7 @@ Optional hardening knobs:
 If you don't want provisioning, you can run images with a single API key:
 
 ```bash
-SOCICLAW_IMAGE_API_BASE_URL=https://<your-image-api-domain>
+ SOCICLAW_IMAGE_API_BASE_URL=https://api.sociclaw.com
 SOCICLAW_IMAGE_API_KEY=your_sociclaw_image_api_key
 SOCICLAW_IMAGE_MODEL=nano-banana
 ```
