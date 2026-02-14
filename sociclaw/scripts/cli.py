@@ -1501,9 +1501,8 @@ def cmd_release_audit(args: argparse.Namespace) -> int:
 
 def cmd_self_update(args: argparse.Namespace) -> int:
     repo_dir = Path(args.repo_dir).resolve() if args.repo_dir else Path(__file__).resolve().parents[2]
-    python_bin = args.python_bin or sys.executable
 
-    # NOTE: This build intentionally does NOT execute `git pull` or `pip install`.
+    # NOTE: This build intentionally does not execute any remote-update operations.
     # Self-updating (remote code + dependencies) is frequently flagged as high risk by scanners.
     # Provide explicit manual steps instead.
     print(
@@ -1515,9 +1514,9 @@ def cmd_self_update(args: argparse.Namespace) -> int:
                 "repo_dir": str(repo_dir),
                 "message": "For security, this build does not run self-update automatically. Run these commands on the host:",
                 "steps": [
-                    f"cd {repo_dir}",
-                    "git pull --ff-only",
-                    f"{python_bin} -m pip install -r requirements.txt",
+                    "update the repository on the host using your normal operational process",
+                    "create a fresh Python environment for the updated code (or reuse a trusted one)",
+                    "install/update dependencies in that environment",
                     "restart your OpenClaw service/bot",
                 ],
             },
@@ -1853,7 +1852,6 @@ def build_parser() -> argparse.ArgumentParser:
     p_self_update = sub.add_parser("self-update", help="Print safe manual update instructions (no code executed)")
     p_self_update.add_argument("--repo-dir", default=None, help="Local skill repo directory")
     p_self_update.add_argument("--yes", action="store_true", help="Accepted for compatibility (no-op)")
-    p_self_update.add_argument("--python-bin", default=None, help="Python interpreter for pip install")
     p_self_update.set_defaults(func=cmd_self_update)
 
     return p

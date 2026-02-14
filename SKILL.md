@@ -15,7 +15,7 @@ requirements:
   env: []
   config: []
 metadata:
-  version: 0.1.8
+  version: 0.1.9
   tags: ["social-media", "x", "twitter", "automation", "content", "image-api", "trello", "notion", "credits", "persistent-memory"]
 ---
 # SociClaw Skill
